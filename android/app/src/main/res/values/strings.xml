@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">IRF Planinfor</string>
+    <string name="title_activity_main">IRF Planinfor</string>
+    <string name="package_name">com.mingeo.irf</string>
+    <string name="custom_url_scheme">com.mingeo.irf</string>
+</resources>

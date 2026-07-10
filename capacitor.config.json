@@ -1,0 +1,6 @@
+{
+    "appId":  "com.mingeo.irf",
+    "appName":  "MingeoIRF",
+    "webDir":  "dist",
+    "bundledWebRuntime":  false
+}

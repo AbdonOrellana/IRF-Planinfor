@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Formato IRF - MINGEO</title>
+    <link rel="stylesheet" href="/src/style.css" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="theme-color" content="#ffffff" />
+</head>
+
+<body>
+
+
+    <div class="form-container">
+        <!-- Unified Header optimized for mobile screens -->
+        <header class="app-header">
+            <div class="brand-text">
+                <h1>MINGEO IRF - CONTROL DE RIESGOS</h1>
+                <span>Versión 17 - Faenas Especiales & Seguridad</span>
+            </div>
+            <div class="header-actions">
+                <button type="button" class="btn-circle" onclick="exportarAPdf()" title="Imprimir o Exportar PDF">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.617 0-1.11-.505-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.865 48.865 0 00-14.325 0C3.768 7.28 3 8.215 3 9.456v6.294a2.25 2.25 0 002.25 2.25h1.091M12 10.125c.621 0 1.125-.504 1.125-1.125S12.621 8 12 8s-1.125.504-1.125 1.125.504 1.125 1.125 1.125z">
+                        </path>
+                    </svg>
+                </button>
+                <button type="button" class="btn-circle" onclick="toggleTheme()" title="Alternar Modo Oscuro">
+                    <!-- Light Mode Icon -->
+                    <svg class="theme-icon-sun" width="18" height="18" fill="none" stroke="currentColor"
+                        stroke-width="2.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M12 3v2.25m0 13.5V21m8.97-8.97h-2.25C18.18 12 12 18.18 12 18.97M5.03 12H2.78m14.288-7.03l-1.591 1.591M6.53 17.47l-1.59 1.591M17.47 17.47l1.591 1.591M6.53 6.53L4.94 4.94M12 7.5a4.5 4.5 0 110 9 4.5 4.5 0 010-9z">
+                        </path>
+                    </svg>
+                    <!-- Dark Mode Icon -->
+                    <svg class="theme-icon-moon" width="18" height="18" fill="none" stroke="currentColor"
+                        stroke-width="2.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z">
+                        </path>
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- Saved Forms Dashboard (Bandeja Offline) -->
+        <div id="offline-dashboard" class="accordion-card" style="display: none; border-color: var(--primary);">
+            <div class="accordion-header" onclick="toggleAccordion('offline-dashboard')">
+                <span class="accordion-header-title">
+                    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+                        </path>
+                    </svg>
+                    📦 Bandeja de Formularios Guardados
+                </span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span id="sync-connection-badge" class="status-badge status-empty">Red...</span>
+                    <svg class="accordion-icon" width="16" height="16" fill="none" stroke="currentColor"
+                        stroke-width="2.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"></path>
+                    </svg>
+                </div>
+            </div>
+            <div class="accordion-content">
+                <div class="accordion-body">
+                    <div
+                        style="display:flex; justify-content: space-between; align-items:center; gap: 12px; margin-bottom: 12px;">
+                        <button type="button" class="btn-action-outline" onclick="nuevoFormulario()"
+                            style="padding: 10px 14px; font-size:13px; width:auto;">📄 Nuevo Formulario</button>
+                        <button type="button" id="btn-sync-all" class="btn-action-primary" onclick="sincronizarTodos()"
+                            style="padding: 10px 14px; font-size:13px; width:auto;">🔄 Sincronizar Pendientes</button>
+                    </div>
+                    <div id="saved-forms-list" class="dashboard-container">
+                        <!-- Formularios renderizados dinámicamente aquí -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <form id="irf-form" action="#" method="POST">
+
+            <!-- SECCIÓN 1: Antecedentes de la Faena -->
+            <div class="accordion-card active" id="card-step-1">
+                <div class="accordion-header" onclick="toggleAccordion('card-step-1')">
+                    <span class="accordion-header-title">
+                        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                            </path>
+                        </svg>
+                        1. Antecedentes de la Faena
+                    </span>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span id="status-step-1" class="status-badge status-empty">Vacío</span>
+                        <svg class="accordion-icon" width="16" height="16" fill="none" stroke="currentColor"
+                            stroke-width="2.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"></path>
+                        </svg>
+                    </div>
+                </div>
+                <div class="accordion-content">
+                    <div class="accordion-body">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="gerencia">Gerencia</label>
+                                <input type="text" id="gerencia" name="gerencia" value="Tecnologia y Planificación"
+                                    readonly>
+                            </div>
+                            <div class="form-group">
+                                <label for="area_relacionamiento">Área Relacionamiento *</label>
+                                <input type="text" id="area_relacionamiento" name="area_relacionamiento"
+                                    placeholder="Nombre del fundo..." required>
+                            </div>
+                            <div class="form-group">
+                                <label for="estados_proyecto">Faena / Estado *</label>
+                                <select name="estado" id="estados_proyecto" required>
+                                    <option value="" disabled selected>-- Seleccione una opción --</option>
+                                    <option value="trazado">Trazado</option>
+                                    <option value="tipificacion">Tipificación</option>
+                                    <option value="planificacion">Planificación</option>
+                                    <option value="marcacion_zp">Marcación ZP</option>
+                                    <option value="control_calidad">Control Calidad Prod. Planta</option>
+                                    <option value="vuelo_dron">Vuelo Dron</option>
+                                    <option value="monitoreo_agua">Monitoreo de Agua</option>
+                                    <option value="geomatica_monitoreo_ambiental" hidden>Geomatica & Monitoreo Ambiental
+                                    </option>
+                                    <option value="otro">Otro</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="fecha_inicio">Fecha inicio *</label>
+                                <input type="date" id="fecha_inicio" name="fecha_inicio" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="num_trabajadores">N° Trabajadores *</label>
+                                <select id="num_trabajadores" name="num_trabajadores" required>
+                                    <option disabled selected value="">Seleccionar</option>
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5</option>
+                                    <option value="6">6</option>
+                                    <option value="7">7</option>
+                                    <option value="8">8</option>
+                                    <option value="9">9</option>
+                                    <option value="10">10</option>
+                                    <option value="11">11</option>
+                                    <option value="12">12</option>
+                                    <option value="13">13</option>
+                                    <option value="14">14</option>
+                                    <option value="15">15</option>
+                                    <option value="16">16</option>
+                                    <option value="17">17</option>
+                                    <option value="18">18</option>
+                                    <option value="19">19</option>
+                                    <option value="20">20</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="num_vehiculos">N° Vehículos Faena *</label>
+                                <select id="num_vehiculos" name="num_vehiculos" required>
+                                    <option disabled selected value="">Seleccionar</option>
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5</option>
+                                </select>
+                            </div>
+                            <div class="form-group full-width">
+                                <label for="fundo_instalacion">Fundo (s) o Instalación (es) *</label>
+                                <input type="text" id="fundo_instalacion" name="fundo_instalacion"
+                                    placeholder="Detalle los fundos o instalaciones intervenidos..." required>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECCIÓN 2: Antecedentes de EESS -->
+            <div class="accordion-card" id="card-step-2">
+                <div class="accordion-header" onclick="toggleAccordion('card-step-2')">
+                    <span class="accordion-header-title">
+                        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1v1H9V7zm0 4h1v1H9v-1zm0 4h1v1H9v-1zm3-8h1v1h-1V7zm0 4h1v1h-1v-1zm0 4h1v1h-1v-1zm3-8h1v1h-1V7zm0 4h1v1h-1v-1zm0 4h1v1h-1v-1z">
+                            </path>
+                        </svg>
+                        2. Antecedentes de EESS
+                    </span>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span id="status-step-2" class="status-badge status-empty">Vacío</span>
+                        <svg class="accordion-icon" width="16" height="16" fill="none" stroke="currentColor"
+                            stroke-width="2.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"></path>
+                        </svg>
+                    </div>
+                </div>
+                <div class="accordion-content">
+                    <div class="accordion-body">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="nombre_eess">Nombre EESS</label>
+                                <input type="text" id="nombre_eess" name="nombre_eess" required value="Planinfor LTDA."
+                                    readonly>
+                            </div>
+                            <div class="form-group">
+                                <label for="supervisor">Supervisor *</label>
+                                <input type="text" id="supervisor" name="supervisor" placeholder="Nombre completo..."
+                                    required list="trabajadores_list">
+                            </div>
+                            <div class="form-group">
+                                <label for="jefe_faena">Jefe de Faena *</label>
+                                <input type="text" id="jefe_faena" name="jefe_faena"
+                                    placeholder="Nombre del jefe de faena..." required list="trabajadores_list">
+                            </div>
+                            <div class="form-group">
+                                <label for="clave_jefe_faena">Clave Jefe de Faena *</label>
+                                <input type="text" id="clave_jefe_faena" name="clave_jefe_faena"
+                                    placeholder="Código o clave asignada..." required>
+                            </div>
+                            <div class="form-group">
+                                <label for="asesor_prev_riesgos">Asesor Prev. Riesgos *</label>
+                                <input type="text" id="asesor_prev_riesgos" name="asesor_prev_riesgos"
+                                    placeholder="Nombre del asesor..." required list="trabajadores_list">
+                            </div>
+                            <div class="form-group">
+                                <label for="telefono_jefe_faena">Teléfono Jefe de Faena *</label>
+                                <input type="tel" id="telefono_jefe_faena" inputmode="numeric" pattern="[0-9]*"
+                                    name="telefono_jefe_faena" placeholder="Ej: +56 9 1234 5678" required>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECCIÓN 3: Participantes en IRF -->
+            <div class="accordion-card" id="card-step-3">
+                <div class="accordion-header" onclick="toggleAccordion('card-step-3')">
+                    <span class="accordion-header-title">
+                        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z">
+                            </path>
+                        </svg>
+                        3. Participantes en IRF
+                    </span>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span id="status-step-3" class="status-badge status-empty">Vacío</span>
+                        <svg class="accordion-icon" width="16" height="16" fill="none" stroke="currentColor"
+                            stroke-width="2.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"></path>
+                        </svg>
+                    </div>
+                </div>
+                <div class="accordion-content">
+                    <div class="accordion-body">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="nombre_participante">Nombre completo</label>
+                                <input type="text" id="nombre_participante"
+                                    placeholder="Ingrese nombre del participante" list="trabajadores_list"
+                                    oninput="autoFillCargo()">
+
+                            </div>
+                            <div class="form-group">
+                                <label for="cargo_participante">Cargo / Función</label>
+                                <input type="text" id="cargo_participante" placeholder="Ingrese cargo o rol...">
+                            </div>
+                            <div class="form-group full-width" style="margin-top: 4px;">
+                                <button type="button" class="btn-add-item" onclick="agregarUsuario()">
+                                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"
+                                        viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15">
+                                        </path>
+                                    </svg>
+                                    Agregar Participante
+                                </button>
+
+                            </div>
+                        </div>
+
+                        <!-- Touch-friendly grid of participants -->
+                        <div id="lista_participantes_container" class="participants-chips-grid">
+                            <!-- Rendered chips will show here -->
+                        </div>
+
+                        <!-- Backwards compatible invisible container (for serialization only) -->
+                        <table style="display: none;">
+                            <tbody id="lista_participantes"></tbody>
+                        </table>
+                        <input type="hidden" name="participantes" id="participantes_hidden" value="[]">
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECCIÓN 4: Coordenadas Caso Rescate -->
+            <div class="accordion-card" id="card-step-4">
+                <div class="accordion-header" onclick="toggleAccordion('card-step-4')">
+                    <span class="accordion-header-title">
+                        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z">
+                            </path>
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z">
+                            </path>
+                        </svg>
+                        4. Coordenadas Caso Rescate
+                    </span>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span id="status-step-4" class="status-badge status-empty">Vacío</span>
+                        <svg class="accordion-icon" width="16" height="16" fill="none" stroke="currentColor"
+                            stroke-width="2.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"></path>
+                        </svg>
+                    </div>
+                </div>
+                <div class="accordion-content">
+                    <div class="accordion-body">
+                        <div class="gps-row">
+                            <div class="form-group">
+                                <label for="latitud">Latitud (Datum 84)</label>
+                                <input type="text" id="latitud" name="latitud" placeholder="Ej: -37.471648">
+                            </div>
+                            <div class="form-group">
+                                <label for="longitud">Longitud (Datum 84)</label>
+                                <input type="text" id="longitud" name="longitud" placeholder="Ej: -72.354192">
+                            </div>
+                            <button type="button" class="btn-gps" onclick="getCurrentLocation()">
+                                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5"
+                                    viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z">
+                                    </path>
+                                </svg>
+                                Auto-capturar Coordenadas
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECCIÓN 5: Registro de Peligros y Evaluaciones -->
+            <div class="accordion-card" id="card-step-5">
+                <div class="accordion-header" onclick="toggleAccordion('card-step-5')">
+                    <span class="accordion-header-title">
+                        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
+                            </path>
+                        </svg>
+                        5. Registro de Peligros y Controles
+                    </span>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span id="status-step-5" class="status-badge status-empty">Vacío</span>
+                        <svg class="accordion-icon" width="16" height="16" fill="none" stroke="currentColor"
+                            stroke-width="2.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"></path>
+                        </svg>
+                    </div>
+                </div>
+                <div class="accordion-content">
+                    <div class="accordion-body">
+                        <!-- Observations -->
+                        <div class="form-group full-width" style="margin-bottom: 20px;">
+                            <label for="observaciones">OBSERVACIONES GENERALES:</label>
+                            <textarea id="observaciones" name="observaciones" rows="3"
+                                placeholder="Detalle observaciones generales de seguridad y medio ambiente..."></textarea>
+                        </div>
+
+                        <div
+                            style="background-color: var(--bg-app); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 16px; margin-bottom: 20px;">
+                            <h4
+                                style="font-size: 13px; font-weight: 800; color: var(--primary); text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+                                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"
+                                    viewBox="0 0 24 24" style="margin-right:2px">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6">
+                                    </path>
+                                </svg> Añadir Peligro / Condición
+                            </h4>
+
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="peligro_fecha" formatDate="DD-MM-YYYY">Fecha Registro</label>
+                                    <input type="date" id="peligro_fecha">
+                                </div>
+                                <div class="form-group">
+                                    <label for="peligro_localizacion">Localización (Fundo / Sector)</label>
+                                    <input type="text" id="peligro_localizacion"
+                                        placeholder="Lugar exacto del hallazgo...">
+                                </div>
+                                <div class="form-group full-width">
+                                    <label for="peligro_descripcion">Descripción del Peligro</label>
+                                    <select id="peligro_descripcion"></select>
+                                </div>
+                                <div class="form-group full-width">
+                                    <label for="peligro_expuestos">Equipos / Personas Expuestas</label>
+                                    <input type="text" id="peligro_expuestos"
+                                        placeholder="Ej: Motosierristas, Maquinistas...">
+                                </div>
+                                <div class="form-group full-width" style="margin-top: 10px;">
+                                    <label style="display:flex; align-items:center; gap:6px; margin-bottom: 8px;">
+                                        Evidencia Fotográfica (Opcional)
+                                    </label>
+                                    <div class="custom-file-upload">
+                                        <button type="button" id="peligro_foto_btn" class="file-btn">
+                                            <svg width="18" height="18" fill="none" stroke="currentColor"
+                                                stroke-width="2" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                    d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z">
+                                                </path>
+                                            </svg>
+                                            <span id="peligro_foto_label">Tomar Foto</span>
+                                        </button>
+                                        <input type="hidden" id="peligro_foto_base64" value="">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Initial Risk -->
+                            <h5
+                                style="font-size: 12px; font-weight: 700; margin-top: 16px; margin-bottom: 8px; color: var(--text-heading); text-transform: uppercase; border-bottom: 1px dashed var(--border); padding-bottom: 4px;">
+                                Evaluación Inicial
+                            </h5>
+                            <div class="form-grid" style="grid-template-columns: repeat(2, 1fr);">
+                                <div class="form-group">
+                                    <label for="peligro_ini_if">Índice Frecuencia (IF)</label>
+                                    <input type="number" id="peligro_ini_if" inputmode="numeric" pattern="[1-4]*"
+                                        oninput="updateFirssoInicialUI()" min="1" max="4" placeholder="0">
+                                </div>
+                                <div class="form-group">
+                                    <label for="peligro_ini_is">Índice Severidad (IS)</label>
+                                    <input type="number" id="peligro_ini_is" inputmode="numeric" pattern="[1-4]*"
+                                        oninput="updateFirssoInicialUI()" min="1" max="4" placeholder="0">
+                                </div>
+                                <div class="risk-calc-card">
+                                    <span>IF + IS</span>
+                                    <div class="risk-value" id="val-ini-firsso">0</div>
+                                    <input type="hidden" id="peligro_ini_firsso" value="0">
+                                </div>
+                                <div class="threat-banner risk-low" id="banner-ini-risk">
+                                    <span>Riesgo Inicial: Bajo</span>
+                                </div>
+                                <div
+                                    style="grid-column: span 2; font-size: 11px; color: var(--danger, #e74c3c); margin-top: 4px; font-weight: 600;">
+                                    * La sumatoria nunca puede ser 8. El valor máximo permitido es 7 o menor.
+                                </div>
+                            </div>
+
+                            <!-- Controls -->
+                            <div class="form-group full-width" style="margin-top: 14px;">
+                                <label>Medidas de Control Mitigantes</label>
+                                <div id="peligro_controles_container" class="chip-list-container">
+                                    <div style="font-size:13px; color:var(--text-muted); font-style:italic;">Seleccione
+                                        un peligro para ver las medidas sugeridas.</div>
+                                </div>
+                                <input type="hidden" id="peligro_controles">
+                            </div>
+
+                            <!-- Residual Risk -->
+                            <h5
+                                style="font-size: 12px; font-weight: 700; margin-top: 16px; margin-bottom: 8px; color: var(--text-heading); text-transform: uppercase; border-bottom: 1px dashed var(--border); padding-bottom: 4px;">
+                                Evaluación Residual (Remanente)
+                            </h5>
+                            <div class="form-grid" style="grid-template-columns: repeat(3, 1fr);">
+                                <div class="form-group">
+                                    <label for="peligro_res_ic">Índice de Control (IC)</label>
+                                    <input type="number" id="peligro_res_ic" inputmode="numeric" pattern="[0-9]*"
+                                        oninput="updateFirssoResidualUI()" min="0" max="10" placeholder="0">
+                                </div>
+                                <div class="form-group">
+                                    <label for="peligro_res_if">IF</label>
+                                    <input type="number" id="peligro_res_if" readonly placeholder="0"
+                                        style="background-color: var(--bg-body); cursor: not-allowed; opacity: 0.7;">
+                                </div>
+                                <div class="form-group">
+                                    <label for="peligro_res_is">IS</label>
+                                    <input type="number" id="peligro_res_is" readonly placeholder="0"
+                                        style="background-color: var(--bg-body); cursor: not-allowed; opacity: 0.7;">
+                                </div>
+                                <div class="risk-calc-card" style="grid-column: span 1.5;">
+                                    <span>(IF+IS)-IC</span>
+                                    <div class="risk-value" id="val-res-firsso">0</div>
+                                    <input type="hidden" id="peligro_res_firsso" value="0">
+                                </div>
+                                <div class="threat-banner risk-low" style="grid-column: span 2;" id="banner-res-risk">
+                                    <span>Riesgo Residual: Bajo</span>
+                                </div>
+                            </div>
+
+                            <!-- Follow up -->
+                            <h5
+                                style="font-size: 12px; font-weight: 700; margin-top: 16px; margin-bottom: 8px; color: var(--text-heading); text-transform: uppercase; border-bottom: 1px dashed var(--border); padding-bottom: 4px;">
+                                Seguimiento & Control
+                            </h5>
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="peligro_responsables">Responsable(s)</label>
+                                    <input type="text" id="peligro_responsables" placeholder="Nombres de encargados..."
+                                        list="trabajadores_list">
+                                </div>
+                                <div class="form-group">
+                                    <label for="peligro_estado">Estado *</label>
+                                    <select id="peligro_estado" required>
+                                        <option value="" disabled>Seleccione...</option>
+                                        <option value="NI">No implementado (NI)</option>
+                                        <option value="I" selected>Implementado (I)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="peligro_control_fecha">Fecha Límite *</label>
+                                    <input type="date" id="peligro_control_fecha" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="peligro_firma_sup">Firma Sup. Validador</label>
+                                    <input type="text" id="peligro_firma_sup" placeholder="Iniciales validador...">
+                                </div>
+                            </div>
+
+                            <button type="button" class="btn-add-item" onclick="agregarPeligro()"
+                                style="margin-top: 16px;">
+                                ➕ Guardar Registro de Peligro
+                            </button>
+
+                        </div>
+
+                        <!-- Stacked mobile hazards view (No horizontal scrolling on phones) -->
+                        <div id="hazards-mobile-list" class="hazards-mobile-list">
+                            <!-- Dynamic touch cards go here -->
+                        </div>
+
+                        <!-- High Density Table ONLY visible on print and desktop (>1024px) -->
+                        <div class="desktop-hazards-table table-responsive">
+                            <table class="premium-table">
+                                <thead>
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>Peligro</th>
+                                        <th>Lugar</th>
+                                        <th>Expuestos</th>
+                                        <th>IF</th>
+                                        <th>IS</th>
+                                        <th>FIRSSO</th>
+                                        <th>Mitigación</th>
+                                        <th>IC</th>
+                                        <th>IF</th>
+                                        <th>IS</th>
+                                        <th>Residual</th>
+                                        <th>Responsable</th>
+                                        <th>Estado</th>
+                                        <th>Fecha (impl.)</th>
+                                        <th>Firma</th>
+                                        <th style="width: 50px;">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="lista_peligros">
+                                    <tr id="empty_peligros_row">
+                                        <td colspan="17"
+                                            style="text-align: center; color: var(--text-light); font-style: italic; padding: 25px;">
+                                            No se han registrado peligros aún.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <input type="hidden" name="peligros" id="peligros_hidden" value="[]">
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECCIÓN 6: Firmas y Cierre -->
+            <div class="accordion-card" id="card-step-6">
+                <div class="accordion-header" onclick="toggleAccordion('card-step-6')">
+                    <span class="accordion-header-title">
+                        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
+                            </path>
+                        </svg>
+                        6. Firmas y Cierre
+                    </span>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span id="status-step-6" class="status-badge status-empty">Vacío</span>
+                        <svg class="accordion-icon" width="16" height="16" fill="none" stroke="currentColor"
+                            stroke-width="2.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"></path>
+                        </svg>
+                    </div>
+                </div>
+                <div class="accordion-content">
+                    <div class="accordion-body">
+
+                        <p
+                            style="text-align: center; font-weight: 700; color: var(--text-heading); font-size: 14px; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 0.5px;">
+                            V°B° INTERVENCIÓN DE FAENAS
+                        </p>
+
+                        <div class="signature-grid">
+                            <!-- Pad 0 -->
+                            <div class="signature-box-mobile" style="margin-bottom: 16px;">
+                                <div class="signature-label"
+                                    style="display: flex; align-items: center; justify-content: center;">
+                                    Jefe de Faena
+                                    <span
+                                        style="color: var(--danger); font-size: 10px; background-color: var(--danger-light); padding: 3px 6px; border-radius: 4px; margin-left: 8px; font-weight: 800; border: 1px solid var(--danger-border);">OBLIGATORIA</span>
+                                </div>
+                                <div class="signature-canvas-area" id="wrapper-firma-0">
+                                    <div class="sig-placeholder">
+                                        <span style="display:flex; align-items:center; gap:6px;"><svg width="18"
+                                                height="18" fill="none" stroke="currentColor" stroke-width="2"
+                                                viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                    d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
+                                                </path>
+                                            </svg> Firme aquí con su dedo</span>
+                                    </div>
+                                    <canvas id="firma_jefe_faena" class="sig-canvas"></canvas>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; width: 100%;"><button
+                                        type="button" class="fullscreen-btn" onclick="pad0.toggleFullscreen()"><svg
+                                            width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"
+                                            viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15">
+                                            </path>
+                                        </svg> Ampliar</button><button type="button" class="sig-clear-btn"
+                                        onclick="pad0.clear()">Limpiar</button></div>
+                                <input type="hidden" name="firma_jefe_faena" id="firma_jefe_faena_input">
+                            </div>
+
+                            <!-- Pad 1 -->
+                            <div class="signature-box-mobile" style="margin-bottom: 16px;">
+                                <div class="signature-label">Asesor Prevención EESS</div>
+                                <div class="signature-canvas-area" id="wrapper-firma-1">
+                                    <div class="sig-placeholder">
+                                        <span style="display:flex; align-items:center; gap:6px;"><svg width="18"
+                                                height="18" fill="none" stroke="currentColor" stroke-width="2"
+                                                viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                    d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
+                                                </path>
+                                            </svg> Firme aquí con su dedo</span>
+                                    </div>
+                                    <canvas id="firma_asesor_prev_eess_intervencion" class="sig-canvas"></canvas>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; width: 100%;"><button
+                                        type="button" class="fullscreen-btn" onclick="pad1.toggleFullscreen()"><svg
+                                            width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"
+                                            viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15">
+                                            </path>
+                                        </svg> Ampliar</button><button type="button" class="sig-clear-btn"
+                                        onclick="pad1.clear()">Limpiar</button></div>
+                                <input type="hidden" name="firma_asesor_prev_eess_intervencion"
+                                    id="firma_asesor_prev_eess_intervencion_input">
+                            </div>
+
+                            <!-- Pad 2 -->
+                            <div class="signature-box-mobile" style="margin-bottom: 16px;">
+                                <div class="signature-label">Supervisión EESS</div>
+                                <div class="signature-canvas-area" id="wrapper-firma-2">
+                                    <div class="sig-placeholder">
+                                        <span style="display:flex; align-items:center; gap:6px;"><svg width="18"
+                                                height="18" fill="none" stroke="currentColor" stroke-width="2"
+                                                viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                    d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
+                                                </path>
+                                            </svg> Firme aquí con su dedo</span>
+                                    </div>
+                                    <canvas id="firma_supervision_eess_intervencion" class="sig-canvas"></canvas>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; width: 100%;"><button
+                                        type="button" class="fullscreen-btn" onclick="pad2.toggleFullscreen()"><svg
+                                            width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"
+                                            viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15">
+                                            </path>
+                                        </svg> Ampliar</button><button type="button" class="sig-clear-btn"
+                                        onclick="pad2.clear()">Limpiar</button></div>
+                                <input type="hidden" name="firma_supervision_eess_intervencion"
+                                    id="firma_supervision_eess_intervencion_input">
+                            </div>
+                        </div>
+
+                        <div style="height: 1px; background-color: var(--border); margin: 30px 0;"></div>
+
+                        <p
+                            style="text-align: center; font-weight: 700; color: var(--text-heading); font-size: 14px; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 0.5px;">
+                            V°B° RECEPCIÓN / CIERRE
+                        </p>
+
+                        <div class="signature-grid">
+                            <!-- Pad 3 -->
+                            <div class="signature-box-mobile" style="margin-bottom: 16px;">
+                                <div class="signature-label">Asesor Prevención (Recepción)</div>
+                                <div class="signature-canvas-area" id="wrapper-firma-3">
+                                    <div class="sig-placeholder">
+                                        <span style="display:flex; align-items:center; gap:6px;"><svg width="18"
+                                                height="18" fill="none" stroke="currentColor" stroke-width="2"
+                                                viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                    d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
+                                                </path>
+                                            </svg> Firme aquí con su dedo</span>
+                                    </div>
+                                    <canvas id="firma_asesor_prev_eess_recepcion" class="sig-canvas"></canvas>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; width: 100%;"><button
+                                        type="button" class="fullscreen-btn" onclick="pad3.toggleFullscreen()"><svg
+                                            width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"
+                                            viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15">
+                                            </path>
+                                        </svg> Ampliar</button><button type="button" class="sig-clear-btn"
+                                        onclick="pad3.clear()">Limpiar</button></div>
+                                <input type="hidden" name="firma_asesor_prev_eess_recepcion"
+                                    id="firma_asesor_prev_eess_recepcion_input">
+                            </div>
+
+                            <!-- Pad 4 -->
+                            <div class="signature-box-mobile" style="margin-bottom: 16px;">
+                                <div class="signature-label">Supervisión (Recepción)</div>
+                                <div class="signature-canvas-area" id="wrapper-firma-4">
+                                    <div class="sig-placeholder">
+                                        <span style="display:flex; align-items:center; gap:6px;"><svg width="18"
+                                                height="18" fill="none" stroke="currentColor" stroke-width="2"
+                                                viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                    d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
+                                                </path>
+                                            </svg> Firme aquí con su dedo</span>
+                                    </div>
+                                    <canvas id="firma_supervision_eess_recepcion" class="sig-canvas"></canvas>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; width: 100%;"><button
+                                        type="button" class="fullscreen-btn" onclick="pad4.toggleFullscreen()"><svg
+                                            width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"
+                                            viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15">
+                                            </path>
+                                        </svg> Ampliar</button><button type="button" class="sig-clear-btn"
+                                        onclick="pad4.clear()">Limpiar</button></div>
+                                <input type="hidden" name="firma_supervision_eess_recepcion"
+                                    id="firma_supervision_eess_recepcion_input">
+                            </div>
+                        </div>
+
+                        <!-- Safety Warning disclaimer box -->
+                        <div class="disclaimer-card">
+                            <span class="disclaimer-icon"><svg width="24" height="24" fill="none" stroke="currentColor"
+                                    stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
+                                    </path>
+                                </svg></span>
+                            <div>
+                                <strong>NOTA DE RESPONSABILIDAD:</strong> Independiente de la fecha y responsables
+                                asignados, será responsabilidad absoluta de la Empresa de Servicios tomar todas las
+                                medidas necesarias para mantener bajo control las condiciones de riesgo detectadas
+                                durante el período que dure la implementación.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botones de acción móvil para Guardar -->
+            <div id="mobile-action-buttons"
+                style="display: none; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 25px; margin-bottom: 12px;">
+                <button type="button" onclick="guardarBorrador()" class="btn-action-outline">💾 Guardar
+                    Borrador</button>
+                <button type="button" onclick="guardarFinalizado()" class="btn-action-primary">📤 Guardar y
+                    Completar</button>
+            </div>
+
+
+        </form>
+    </div>
+
+
+
+
+    <!-- SOS Emergency Floating Button (FAB) and Slide-up Modal Panel -->
+    <button type="button" class="fab-sos" onclick="toggleSosModal()" title="Contactos de Emergencia">
+        <span class="fab-pulse"></span>
+        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round"
+                d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.387a12.035 12.035 0 01-7.108-7.108c-.155-.44.011-.927.387-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z">
+            </path>
+        </svg>
+    </button>
+
+    <div class="sos-modal-overlay" id="sos-overlay" onclick="toggleSosModal()"></div>
+    <div class="sos-modal" id="sos-modal">
+        <div class="sos-modal-header">
+            <h3 style="display:flex;align-items:center;gap:8px"><svg width="24" height="24" fill="none"
+                    stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
+                    </path>
+                </svg> Números de Emergencia (SOS)</h3>
+            <button type="button" class="btn-close-modal" onclick="toggleSosModal()">&times;</button>
+        </div>
+        <div class="sos-contact-list">
+            <div class="sos-contact-item">
+                <span>Fono Denuncia</span>
+                <a href="tel:0994425100" class="sos-call-btn">📞 Llamar</a>
+            </div>
+            <div class="sos-contact-item">
+                <span>Central DAC</span>
+                <a href="tel:0432636281" class="sos-call-btn">📞 Llamar</a>
+            </div>
+            <div class="sos-contact-item">
+                <span>Central Incendios</span>
+                <a href="tel:800441000" class="sos-call-btn">📞 Llamar</a>
+            </div>
+            <div class="sos-contact-item">
+                <span>Teléfono EESS</span>
+                <a href="tel:999494087" class="sos-call-btn">📞 Llamar</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Animated Toasts Containers -->
+    <div id="toast-container" class="toast-container"></div>
+
+
+
+
+
+
+
+
+
+
+
+    <script type="module" src="/src/main.js"></script>
+</body>
+
+</html>
