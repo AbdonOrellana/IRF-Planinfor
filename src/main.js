@@ -1906,7 +1906,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         function getServerUrl() {
-            return localStorage.getItem('irf_server_url') || 'http://services.planinfor.cl:8091';
+        function getServerUrl() {
+            return localStorage.getItem('irf_server_url') || 'http://190.13.189.196:8091';
         }
 
         function setServerUrl(url) {
@@ -1921,7 +1922,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         function configurarServidorUrl() {
             const current = getServerUrl();
-            const val = prompt('Configurar Dirección IP / URL del Servidor API (PC de producción):', current);
+            const val = prompt('Configurar Dirección IP / URL del Servidor API (Producción Planinfor):', current);
             if (val !== null && val.trim() !== '') {
                 setServerUrl(val);
                 showToast(`✅ Servidor configurado en: ${getServerUrl()}`, 'success');
@@ -1930,12 +1931,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         async function tryFetchWithFallback(endpoint, options = {}) {
             const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) || !!window.Android;
-            const configuredUrl = (getServerUrl() || 'http://services.planinfor.cl:8091').replace(/\/$/, '');
+            const configuredUrl = (getServerUrl() || 'http://190.13.189.196:8091').replace(/\/$/, '');
 
             const candidateUrls = [
                 configuredUrl,
+                'http://190.13.189.196:8091',
                 'http://services.planinfor.cl:8091',
-                'http://190.13.189.196:8091'
+                'http://192.168.99.152:3000'
             ];
 
             const uniqueCandidates = [...new Set(candidateUrls)];
