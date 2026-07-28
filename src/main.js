@@ -1320,25 +1320,40 @@ function initFundoAutocomplete() {
 
             // Generate HTML for hazards
             let hazardsHtml = '';
-            peligrosList.forEach(p => {
-                const getRiskStyle = (lvl) => {
-                    if (lvl === 'Bajo') return 'background-color: #d1fae5; color: #065f46; border: 1px solid #059669;';
-                    if (lvl === 'Medio') return 'background-color: #fef3c7; color: #92400e; border: 1px solid #d97706;';
-                    if (lvl === 'Alto') return 'background-color: #fee2e2; color: #991b1b; border: 1px solid #dc2626;';
-                    return 'background-color: #fca5a5; color: #7f1d1d; border: 1px solid #b91c1c;';
-                };
 
+            function getRiskStyle(lvl) {
+                if (lvl === 'Bajo') return 'background-color: #dcfce7; color: #166534; border: 1px solid #15803d;';
+                if (lvl === 'Medio') return 'background-color: #fef3c7; color: #92400e; border: 1px solid #d97706;';
+                if (lvl === 'Alto') return 'background-color: #fee2e2; color: #991b1b; border: 1px solid #dc2626;';
+                return 'background-color: #fca5a5; color: #7f1d1d; border: 1px solid #b91c1c;';
+            };
+
+            function formatMultilineText(str) {
+                if (!str) return '';
+                return escapeHTML(str).replace(/\n/g, '<br>');
+            }
+
+            function formatListText(str) {
+                if (!str) return '';
+                const lines = str.split('\n').map(l => l.trim()).filter(l => l);
+                if (lines.length <= 1) return formatMultilineText(str);
+                return `<ul style="margin: 0; padding-left: 12px; margin-top: 2px; margin-bottom: 2px;">` + 
+                       lines.map(l => `<li style="margin-bottom: 2px;">${escapeHTML(l.replace(/^[-*•]\s*/, ''))}</li>`).join('') + 
+                       `</ul>`;
+            }
+
+            peligrosList.forEach(p => {
                 hazardsHtml += `
                     <tr>
                         <td>${formatDate(p.fecha)}</td>
-                        <td style="text-align: left; max-width: 150px; word-wrap: break-word;">${escapeHTML(p.descripcion)}</td>
+                        <td style="text-align: left; max-width: 150px; word-wrap: break-word;">${formatMultilineText(p.descripcion)}</td>
                         <td>${escapeHTML(p.localizacion)}</td>
                         <td>${escapeHTML(p.expuestos)}</td>
                         <td>${p.ini_if}</td>
                         <td>${p.ini_is}</td>
                         <td>0</td>
                         <td style="${getRiskStyle(p.ini_firsso)} font-weight: bold; font-size: 7px; padding: 1px 3px; border-radius: 3px;">${p.ini_firsso}</td>
-                        <td style="text-align: left; max-width: 150px; word-wrap: break-word;">${escapeHTML(p.controles)}</td>
+                        <td style="text-align: left; max-width: 150px; word-wrap: break-word; padding: 4px;">${formatListText(p.controles)}</td>
                         <td>0</td>
                         <td>${p.res_if}</td>
                         <td>${p.res_is}</td>
