@@ -20,8 +20,12 @@
     "@capacitor/geolocation": "^8.2.0",
     "@capgo/capacitor-printer": "^8.0.18",
     "@ionic/pwa-elements": "^3.4.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",
-    "localforage": "^1.10.0"
+    "localforage": "^1.10.0",
+    "pg": "^8.22.0"
   }
 }

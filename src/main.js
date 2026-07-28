@@ -518,8 +518,23 @@ function initFundoAutocomplete() {
             }
 
             save() {
-                this.input.value = this.canvas.toDataURL('image/png');
-                checkStepCompletion();
+                if (!this.wrapper || !this.wrapper.classList.contains('signed')) {
+                    this.input.value = '';
+                } else {
+                    try {
+                        const cWidth = 350;
+                        const cHeight = Math.round(350 * (this.canvas.height / (this.canvas.width || 1))) || 150;
+                        const tempCanvas = document.createElement('canvas');
+                        tempCanvas.width = cWidth;
+                        tempCanvas.height = cHeight;
+                        const tempCtx = tempCanvas.getContext('2d');
+                        tempCtx.drawImage(this.canvas, 0, 0, cWidth, cHeight);
+                        this.input.value = tempCanvas.toDataURL('image/png');
+                    } catch (e) {
+                        this.input.value = this.canvas.toDataURL('image/png');
+                    }
+                }
+                if (typeof checkStepCompletion === 'function') checkStepCompletion();
             }
         }
 
@@ -615,6 +630,13 @@ function initFundoAutocomplete() {
                 }
 
                 setTimeout(() => {
+                    if (cardId === 'card-step-4') {
+                        const latVal = document.getElementById('latitud')?.value?.trim();
+                        const lngVal = document.getElementById('longitud')?.value?.trim();
+                        if (!latVal || !lngVal) {
+                            getCurrentLocation();
+                        }
+                    }
                     if (cardId === 'card-step-6') {
                         if (typeof pad1 !== 'undefined' && pad1) pad1.resize();
                         if (typeof pad2 !== 'undefined' && pad2) pad2.resize();
@@ -685,27 +707,56 @@ function initFundoAutocomplete() {
             }, 3500);
         }
 
-        // Satellital Coordinates GPS auto-capture API
+        // Satellital Coordinates GPS auto-capture API (Web + Capacitor compatible)
         async function getCurrentLocation() {
-            showToast('Conectando con señal de satélites GPS...', 'info');
-            try {
-                // Request permission first (required on Android)
-                const perm = await Geolocation.requestPermissions();
-                if (perm.location !== 'granted') {
-                    showToast('Permiso de ubicación denegado. Active el GPS en Configuración.', 'warning');
-                    return;
-                }
-                const pos = await Geolocation.getCurrentPosition({
-                    enableHighAccuracy: true,
-                    timeout: 10000
-                });
-                document.getElementById('latitud').value = pos.coords.latitude.toFixed(6);
-                document.getElementById('longitud').value = pos.coords.longitude.toFixed(6);
-                showToast('GPS: Coordenadas fijadas con éxito.', 'success');
-                checkStepCompletion();
-            } catch (err) {
-                console.error(err);
-                showToast(`Error de GPS: ${err.message}. Digite manual.`, 'danger');
+            showToast('📍 Buscando señal GPS...', 'info');
+
+            const setCoords = (lat, lng) => {
+                const latEl = document.getElementById('latitud');
+                const lngEl = document.getElementById('longitud');
+                if (latEl) latEl.value = Number(lat).toFixed(6);
+                if (lngEl) lngEl.value = Number(lng).toFixed(6);
+                showToast('✅ GPS: Coordenadas fijadas con éxito.', 'success');
+                if (typeof checkStepCompletion === 'function') checkStepCompletion();
+            };
+
+            // 1. Standard Web Browser Geolocation API
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        setCoords(position.coords.latitude, position.coords.longitude);
+                    },
+                    async (error) => {
+                        console.warn('Navigator Geolocation error, trying Capacitor fallback:', error);
+                        // 2. Fallback to Capacitor Geolocation if available
+                        try {
+                            if (typeof Geolocation !== 'undefined' && Geolocation.getCurrentPosition) {
+                                const pos = await Geolocation.getCurrentPosition({
+                                    enableHighAccuracy: true,
+                                    timeout: 15000
+                                });
+                                setCoords(pos.coords.latitude, pos.coords.longitude);
+                                return;
+                            }
+                        } catch (capErr) {
+                            console.error('Capacitor Geolocation error:', capErr);
+                        }
+                        
+                        let msg = 'No se pudo obtener señal GPS.';
+                        if (error.code === 1) msg = 'Permiso de GPS denegado por el dispositivo/navegador.';
+                        else if (error.code === 2) msg = 'Señal GPS no disponible.';
+                        else if (error.code === 3) msg = 'Tiempo de espera GPS agotado.';
+                        
+                        showToast(`⚠️ ${msg} Puede digitar las coordenadas manualmente.`, 'warning');
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 12000,
+                        maximumAge: 0
+                    }
+                );
+            } else {
+                showToast('⚠️ El navegador no soporta geolocalización. Ingrese manualmente.', 'warning');
             }
         }
 
@@ -1697,6 +1748,105 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        function verificarAccesoPlataforma() {
+            const isCapacitorNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+            const isAndroidApp = !!(window.Android || isCapacitorNative || window.location.search.includes('mode=app'));
+
+            const mainTabs = document.querySelector('.main-tabs');
+            const loginOverlay = document.getElementById('login-modal-overlay');
+            const logoutBtn = document.getElementById('btn-logout');
+            const logoutBtnHero = document.getElementById('btn-logout-hero');
+            const headerPrintBtn = document.getElementById('btn-header-print');
+
+            if (isAndroidApp) {
+                // APK App: Ocultar vista prevencionista, pestaña principal no necesaria
+                if (mainTabs) mainTabs.style.display = 'none';
+                if (loginOverlay) loginOverlay.style.display = 'none';
+                if (logoutBtn) logoutBtn.style.display = 'none';
+                if (logoutBtnHero) logoutBtnHero.style.display = 'none';
+                switchMainTab('form');
+            } else {
+                // Vista Web: Exclusiva para Prevencionista (Sin acceso a crear IRF)
+                if (mainTabs) mainTabs.style.display = 'none';
+                if (headerPrintBtn) headerPrintBtn.style.display = 'none';
+                const authToken = sessionStorage.getItem('irf_auth_token');
+                if (!authToken) {
+                    if (loginOverlay) loginOverlay.style.display = 'flex';
+                    if (logoutBtn) logoutBtn.style.display = 'none';
+                    if (logoutBtnHero) logoutBtnHero.style.display = 'none';
+                } else {
+                    if (loginOverlay) loginOverlay.style.display = 'none';
+                    if (logoutBtn) logoutBtn.style.display = 'inline-flex';
+                    if (logoutBtnHero) logoutBtnHero.style.display = 'inline-flex';
+                    switchMainTab('prevencionista');
+                }
+            }
+        }
+
+        async function procesarLogin(e) {
+            if (e) e.preventDefault();
+            const usernameInput = document.getElementById('login-username');
+            const passwordInput = document.getElementById('login-password');
+            const errorMsg = document.getElementById('login-error-msg');
+            const loginOverlay = document.getElementById('login-modal-overlay');
+            const logoutBtn = document.getElementById('btn-logout');
+            const logoutBtnHero = document.getElementById('btn-logout-hero');
+            const mainTabs = document.querySelector('.main-tabs');
+
+            const username = usernameInput?.value?.trim() || '';
+            const password = passwordInput?.value?.trim() || '';
+
+            if (errorMsg) errorMsg.style.display = 'none';
+
+            function showLoggedInUI() {
+                if (loginOverlay) loginOverlay.style.display = 'none';
+                if (logoutBtn) logoutBtn.style.display = 'inline-flex';
+                if (logoutBtnHero) logoutBtnHero.style.display = 'inline-flex';
+                if (mainTabs) mainTabs.style.display = 'none';
+                showToast('✅ Sesión iniciada como Prevencionista', 'success');
+                switchMainTab('prevencionista');
+            }
+
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const json = await res.json();
+                if (json.success && json.token) {
+                    sessionStorage.setItem('irf_auth_token', json.token);
+                    showLoggedInUI();
+                    return;
+                }
+            } catch (err) {
+                console.warn('API login fallback check:', err);
+            }
+
+            // Fallback validation if server offline or custom creds
+            if ((username === 'prevencionista' || username === 'admin') && (password === 'admin' || password === 'mingeo2026')) {
+                sessionStorage.setItem('irf_auth_token', 'token_local_' + Date.now());
+                showLoggedInUI();
+            } else {
+                if (errorMsg) {
+                    errorMsg.textContent = '❌ Usuario o contraseña incorrectos. (Prueba: prevencionista / admin)';
+                    errorMsg.style.display = 'block';
+                }
+            }
+        }
+
+        function cerrarSesion() {
+            sessionStorage.removeItem('irf_auth_token');
+            const loginOverlay = document.getElementById('login-modal-overlay');
+            const logoutBtn = document.getElementById('btn-logout');
+            const logoutBtnHero = document.getElementById('btn-logout-hero');
+            if (loginOverlay) loginOverlay.style.display = 'flex';
+            if (logoutBtn) logoutBtn.style.display = 'none';
+            if (logoutBtnHero) logoutBtnHero.style.display = 'none';
+            document.body.classList.remove('prevencionista-mode');
+            showToast('🔒 Sesión cerrada', 'info');
+        }
+
         function initAndroidApp() {
             // Always show action buttons and dashboard (localStorage works in Capacitor)
             const dashboard = document.getElementById('offline-dashboard');
@@ -1706,6 +1856,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             currentActiveFormId = 'irf_' + Date.now();
             renderSavedForms();
+            verificarAccesoPlataforma();
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -1754,25 +1905,653 @@ document.addEventListener('DOMContentLoaded', () => {
             container.innerHTML = html;
         }
 
-        function sincronizarTodos() {
-            if (!isAndroidApp) return;
-            showToast('Iniciando sincronización...', 'info');
-            const resultRaw = window.Android.syncForms("http://mock.mingeo.cl/api/sync");
+        function getServerUrl() {
+            return localStorage.getItem('irf_server_url') || 'https://interim-nylon-slide-survivors.trycloudflare.com';
+        }
 
-            if (resultRaw === "NO_CONNECTION") {
-                showToast('Sin conexión a internet disponible', 'warning');
+        function setServerUrl(url) {
+            if (url) {
+                let clean = url.trim().replace(/\/$/, '');
+                if (!clean.startsWith('http://') && !clean.startsWith('https://')) {
+                    clean = 'http://' + clean;
+                }
+                localStorage.setItem('irf_server_url', clean);
+            }
+        }
+
+        function configurarServidorUrl() {
+            const current = getServerUrl();
+            const val = prompt('Configurar Dirección IP / URL del Servidor API (PC de producción):', current);
+            if (val !== null && val.trim() !== '') {
+                setServerUrl(val);
+                showToast(`✅ Servidor configurado en: ${getServerUrl()}`, 'success');
+            }
+        }
+
+        async function tryFetchWithFallback(endpoint, options = {}) {
+            const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) || !!window.Android;
+            const configuredUrl = (getServerUrl() || 'https://interim-nylon-slide-survivors.trycloudflare.com').replace(/\/$/, '');
+
+            const candidateUrls = [
+                configuredUrl,
+                'https://interim-nylon-slide-survivors.trycloudflare.com',
+                'http://192.168.99.172:3000'
+            ];
+
+            const uniqueCandidates = [...new Set(candidateUrls)];
+            let lastError = null;
+
+            for (const baseUrl of uniqueCandidates) {
+                const targetUrl = isNative ? (baseUrl + endpoint) : (endpoint.startsWith('/') ? endpoint : '/' + endpoint);
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+                try {
+                    const res = await fetch(targetUrl, {
+                        ...options,
+                        signal: controller.signal,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            ...(options.headers || {})
+                        }
+                    });
+                    clearTimeout(timeoutId);
+                    if (res.ok || res.status < 500) return res;
+                } catch (err) {
+                    clearTimeout(timeoutId);
+                    lastError = err;
+                    console.warn(`Intento fallido a ${targetUrl}:`, err);
+                    if (!isNative) {
+                        try {
+                            const webRes = await fetch(baseUrl + endpoint, { ...options });
+                            if (webRes.ok) return webRes;
+                        } catch (e2) {
+                            lastError = e2;
+                        }
+                    }
+                }
+            }
+
+            throw lastError || new Error('No se pudo conectar a ningún servidor disponible');
+        }
+
+        async function sincronizarTodos(directFormObj) {
+            showToast('Iniciando sincronización con el servidor...', 'info');
+            let list = getSavedFormsList() || [];
+
+            let itemsToSync = [];
+            if (directFormObj && directFormObj.id) {
+                itemsToSync.push({ itemRef: null, formObj: directFormObj });
+            }
+
+            for (const item of list) {
+                if (directFormObj && directFormObj.id === item.id) continue;
+                const raw = localStorage.getItem('irf_form_' + item.id);
+                if (raw) {
+                    try {
+                        itemsToSync.push({ itemRef: item, formObj: JSON.parse(raw) });
+                    } catch (e) {
+                        console.warn('Error parsing form item', e);
+                    }
+                }
+            }
+
+            if (itemsToSync.length === 0) {
+                showToast('No hay formularios guardados localmente para sincronizar', 'info');
                 return;
             }
 
-            const result = JSON.parse(resultRaw);
-            if (result.total === 0) {
-                showToast('No hay formularios pendientes de sincronizar', 'info');
-            } else if (result.synced > 0) {
-                showToast(`Sincronizados con éxito: ${result.synced} de ${result.total} formularios.`, 'success');
-                renderSavedForms();
-            } else {
-                showToast('Fallo al sincronizar los formularios con el servidor', 'danger');
+            let countSuccess = 0;
+            let lastErrorMsg = '';
+
+            for (const entry of itemsToSync) {
+                try {
+                    const response = await tryFetchWithFallback('/api/sync', {
+                        method: 'POST',
+                        body: JSON.stringify(entry.formObj)
+                    });
+
+                    if (response.ok) {
+                        countSuccess++;
+                        if (entry.itemRef) {
+                            entry.itemRef.synced = true;
+                            entry.itemRef.syncedAt = new Date().toISOString();
+                        } else {
+                            const idx = list.findIndex(l => l.id === entry.formObj.id);
+                            if (idx >= 0) {
+                                list[idx].synced = true;
+                                list[idx].syncedAt = new Date().toISOString();
+                            } else {
+                                list.push({
+                                    id: entry.formObj.id,
+                                    nombre: entry.formObj.nombre,
+                                    savedAt: entry.formObj.savedAt,
+                                    synced: true,
+                                    syncedAt: new Date().toISOString()
+                                });
+                            }
+                        }
+                    } else {
+                        const errTxt = await response.text();
+                        lastErrorMsg = `HTTP ${response.status}: ${errTxt}`;
+                        console.error('Servidor retornó error al sincronizar ' + entry.formObj.id, errTxt);
+                    }
+                } catch (err) {
+                    lastErrorMsg = err.message || String(err);
+                    console.error('Error de red al sincronizar formulario ' + entry.formObj.id, err);
+                }
             }
+
+            try {
+                setSavedFormsList(list);
+                renderSavedForms();
+            } catch (e) {
+                console.warn('Error re-rendering saved forms list:', e);
+            }
+
+            if (countSuccess > 0) {
+                showToast(`✅ Sincronizados con éxito: ${countSuccess} de ${itemsToSync.length} formularios en la base de datos.`, 'success');
+                const prevContainer = document.getElementById('view-prevencionista-container');
+                if (prevContainer && prevContainer.style.display !== 'none') {
+                    cargarFormulariosPrevencionista();
+                }
+            } else {
+                showToast(`⚠️ No se pudo sincronizar: ${lastErrorMsg || 'Error de conexión'}`, 'danger');
+            }
+        }
+
+        // ------------------ MODULO VISTA PREVENCIONISTA ------------------
+        let syncedFormsCache = [];
+
+        function switchMainTab(tab) {
+            const formTabBtn = document.getElementById('tab-btn-form');
+            const prevTabBtn = document.getElementById('tab-btn-prevencionista');
+            const formContainer = document.getElementById('view-form-container');
+            const prevContainer = document.getElementById('view-prevencionista-container');
+
+            if (tab === 'form') {
+                if (formTabBtn) formTabBtn.classList.add('active');
+                if (prevTabBtn) prevTabBtn.classList.remove('active');
+                if (formContainer) formContainer.style.display = 'block';
+                if (prevContainer) prevContainer.style.display = 'none';
+                document.body.classList.remove('prevencionista-mode');
+            } else if (tab === 'prevencionista') {
+                if (formTabBtn) formTabBtn.classList.remove('active');
+                if (prevTabBtn) prevTabBtn.classList.add('active');
+                if (formContainer) formContainer.style.display = 'none';
+                if (prevContainer) prevContainer.style.display = 'block';
+                document.body.classList.add('prevencionista-mode');
+                cargarFormulariosPrevencionista();
+            }
+        }
+
+        async function cargarFormulariosPrevencionista() {
+            const tbody = document.getElementById('prevencionista-table-body');
+            const badge = document.getElementById('prev-db-badge');
+            if (!tbody) return;
+
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" style="text-align:center; padding:24px; color:var(--text-muted);">
+                        🔄 Consultando registros en la base de datos...
+                    </td>
+                </tr>
+            `;
+
+            try {
+                const response = await tryFetchWithFallback('/api/forms');
+                if (!response.ok) throw new Error('Servidor retornó error HTTP ' + response.status);
+                const json = await response.json();
+                syncedFormsCache = (json.forms || []).filter(f => f && f.id);
+
+                if (badge) {
+                    badge.innerHTML = '<span class="prev-connection-dot"></span> Servidor Conectado';
+                    badge.className = 'prev-connection-badge connected';
+                }
+
+                poblarOpcionesFiltrosPrevencionista(syncedFormsCache);
+                filtrarTablaPrevencionista();
+            } catch (err) {
+                console.error('Error al obtener formularios de la BD:', err);
+                if (badge) {
+                    badge.innerHTML = '⚠ Sin Conexión';
+                    badge.className = 'prev-connection-badge disconnected';
+                }
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8">
+                            <div class="prev-empty-state">
+                                <div class="prev-empty-icon">⚠️</div>
+                                <div class="prev-empty-text">
+                                    No se pudo conectar con el servidor.<br>
+                                    Verifica que la API esté activa e intenta nuevamente.
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        function poblarOpcionesFiltrosPrevencionista(forms) {
+            const fundoSelect = document.getElementById('prev-filter-fundo');
+            const supervisorSelect = document.getElementById('prev-filter-supervisor');
+            if (!fundoSelect || !supervisorSelect) return;
+
+            const currentFundo = fundoSelect.value;
+            const currentSupervisor = supervisorSelect.value;
+
+            // Extraer fundos únicos
+            const fundos = Array.from(new Set((forms || []).map(f => (f.fundo_instalacion || '').trim()).filter(Boolean))).sort();
+            
+            // Extraer supervisores y asesores únicos
+            const supervisoresSet = new Set();
+            (forms || []).forEach(f => {
+                if (f.supervisor && f.supervisor.trim()) supervisoresSet.add(f.supervisor.trim());
+                if (f.asesor_prevencion && f.asesor_prevencion.trim()) supervisoresSet.add(f.asesor_prevencion.trim());
+            });
+            const supervisores = Array.from(supervisoresSet).sort();
+
+            let fundoOptions = '<option value="">Todos los fundos (' + fundos.length + ')</option>';
+            fundos.forEach(f => {
+                fundoOptions += `<option value="${escapeHTML(f)}">${escapeHTML(f)}</option>`;
+            });
+            fundoSelect.innerHTML = fundoOptions;
+            if (fundos.includes(currentFundo)) fundoSelect.value = currentFundo;
+
+            let supervisorOptions = '<option value="">Todos los supervisores (' + supervisores.length + ')</option>';
+            supervisores.forEach(s => {
+                supervisorOptions += `<option value="${escapeHTML(s)}">${escapeHTML(s)}</option>`;
+            });
+            supervisorSelect.innerHTML = supervisorOptions;
+            if (supervisores.includes(currentSupervisor)) supervisorSelect.value = currentSupervisor;
+        }
+
+        function filtrarTablaPrevencionista() {
+            const fundoValue = (document.getElementById('prev-filter-fundo')?.value || '').trim().toLowerCase();
+            const supervisorValue = (document.getElementById('prev-filter-supervisor')?.value || '').trim().toLowerCase();
+            const fechaValue = (document.getElementById('prev-filter-fecha')?.value || '').trim();
+            const queryValue = (document.getElementById('prev-search-input')?.value || '').trim().toLowerCase();
+
+            const activeFiltersBar = document.getElementById('prev-active-filters-bar');
+            const activeChips = document.getElementById('prev-active-chips');
+            const clearBtn = document.getElementById('btn-clear-filters');
+
+            const filtered = (syncedFormsCache || []).filter(item => {
+                // Filtro Fundo
+                if (fundoValue) {
+                    const itemFundo = (item.fundo_instalacion || '').toLowerCase();
+                    if (itemFundo !== fundoValue) return false;
+                }
+
+                // Filtro Supervisor / Asesor
+                if (supervisorValue) {
+                    const itemSup = (item.supervisor || '').toLowerCase();
+                    const itemPrev = (item.asesor_prevencion || '').toLowerCase();
+                    if (itemSup !== supervisorValue && itemPrev !== supervisorValue) return false;
+                }
+
+                // Filtro Fecha (Compara YYYY-MM-DD contra fecha_inicio o synced_at/saved_at)
+                if (fechaValue) {
+                    const fechaInicio = (item.fecha_inicio || '').trim(); // p.ej. 2026-07-24
+                    const syncedAt = item.synced_at ? new Date(item.synced_at).toISOString().split('T')[0] : '';
+                    const savedAt = item.saved_at ? new Date(item.saved_at).toISOString().split('T')[0] : '';
+                    if (fechaInicio !== fechaValue && syncedAt !== fechaValue && savedAt !== fechaValue) return false;
+                }
+
+                // Búsqueda General Texto
+                if (queryValue) {
+                    const searchStr = `${item.fundo_instalacion || ''} ${item.faena || ''} ${item.supervisor || ''} ${item.asesor_prevencion || ''} ${item.fecha_inicio || ''} ${item.nombre || ''}`.toLowerCase();
+                    if (!searchStr.includes(queryValue)) return false;
+                }
+
+                return true;
+            });
+
+            // Actualizar chips de filtros activos
+            const chips = [];
+            if (fundoValue) {
+                const rawName = document.getElementById('prev-filter-fundo')?.options[document.getElementById('prev-filter-fundo')?.selectedIndex]?.text || fundoValue;
+                chips.push({ key: 'fundo', label: 'Fundo: ' + rawName });
+            }
+            if (supervisorValue) {
+                const rawName = document.getElementById('prev-filter-supervisor')?.options[document.getElementById('prev-filter-supervisor')?.selectedIndex]?.text || supervisorValue;
+                chips.push({ key: 'supervisor', label: 'Supervisor: ' + rawName });
+            }
+            if (fechaValue) {
+                chips.push({ key: 'fecha', label: 'Fecha: ' + fechaValue });
+            }
+            if (queryValue) {
+                chips.push({ key: 'query', label: 'Búsqueda: "' + queryValue + '"' });
+            }
+
+            if (chips.length > 0) {
+                if (activeFiltersBar) activeFiltersBar.style.display = 'flex';
+                if (clearBtn) clearBtn.style.display = 'inline-flex';
+                if (activeChips) {
+                    activeChips.innerHTML = chips.map(c => `
+                        <span class="prev-chip">
+                            ${escapeHTML(c.label)}
+                            <span class="prev-chip-remove" onclick="removerFiltroPrevencionista('${c.key}')" title="Quitar filtro">&times;</span>
+                        </span>
+                    `).join('');
+                }
+            } else {
+                if (activeFiltersBar) activeFiltersBar.style.display = 'none';
+                if (clearBtn) clearBtn.style.display = 'none';
+                if (activeChips) activeChips.innerHTML = '';
+            }
+
+            renderTablaPrevencionista(filtered);
+        }
+
+        function removerFiltroPrevencionista(key) {
+            if (key === 'fundo') {
+                const el = document.getElementById('prev-filter-fundo');
+                if (el) el.value = '';
+            } else if (key === 'supervisor') {
+                const el = document.getElementById('prev-filter-supervisor');
+                if (el) el.value = '';
+            } else if (key === 'fecha') {
+                const el = document.getElementById('prev-filter-fecha');
+                if (el) el.value = '';
+            } else if (key === 'query') {
+                const el = document.getElementById('prev-search-input');
+                if (el) el.value = '';
+            }
+            filtrarTablaPrevencionista();
+        }
+
+        function limpiarFiltrosPrevencionista() {
+            const fundoEl = document.getElementById('prev-filter-fundo');
+            const supEl = document.getElementById('prev-filter-supervisor');
+            const fechaEl = document.getElementById('prev-filter-fecha');
+            const searchEl = document.getElementById('prev-search-input');
+
+            if (fundoEl) fundoEl.value = '';
+            if (supEl) supEl.value = '';
+            if (fechaEl) fechaEl.value = '';
+            if (searchEl) searchEl.value = '';
+
+            filtrarTablaPrevencionista();
+        }
+
+        function renderTablaPrevencionista(forms) {
+            const tbody = document.getElementById('prevencionista-table-body');
+            if (!tbody) return;
+
+            // Actualizar Tarjetas de Métricas
+            const metricTotal = document.getElementById('prev-metric-total');
+            const metricFundos = document.getElementById('prev-metric-fundos');
+            const metricPeligros = document.getElementById('prev-metric-peligros');
+            const metricLastDate = document.getElementById('prev-metric-lastdate');
+            const panelCount = document.getElementById('prev-panel-count');
+
+            const formsList = forms || [];
+
+            if (metricTotal) metricTotal.textContent = formsList.length;
+            if (metricFundos) {
+                const uniqueFundos = new Set(formsList.map(f => f.fundo_instalacion).filter(Boolean));
+                metricFundos.textContent = uniqueFundos.size;
+            }
+            if (metricPeligros) {
+                const totalPeligros = formsList.reduce((sum, f) => sum + (parseInt(f.cant_peligros) || 0), 0);
+                metricPeligros.textContent = totalPeligros;
+            }
+            if (metricLastDate) {
+                const withDate = formsList.find(f => f.synced_at || f.saved_at);
+                if (withDate) {
+                    const d = new Date(withDate.synced_at || withDate.saved_at);
+                    metricLastDate.textContent = d.toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' }) + ', ' + d.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+                } else {
+                    metricLastDate.textContent = '—';
+                }
+            }
+            if (panelCount) {
+                panelCount.textContent = formsList.length + (formsList.length === 1 ? ' registro' : ' registros');
+            }
+
+            if (formsList.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8">
+                            <div class="prev-empty-state">
+                                <div class="prev-empty-icon">
+                                    <svg width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5m8.25 3v6.75m0 0l-3-3m3 3l3-3M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"/></svg>
+                                </div>
+                                <div class="prev-empty-text">
+                                    No hay formularios sincronizados aún.<br>
+                                    Los registros aparecerán aquí cuando se sincronicen desde la app móvil en terreno.
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            let html = '';
+            formsList.forEach((item, idx) => {
+                const dateStr = item.synced_at ? new Date(item.synced_at).toLocaleString('es-CL') : (item.saved_at ? new Date(item.saved_at).toLocaleString('es-CL') : 'N/A');
+                const fundoStr = escapeHTML(item.fundo_instalacion || 'Sin fundo');
+                const faenaStr = escapeHTML(item.faena || 'Sin faena');
+                const fechaStr = escapeHTML(item.fecha_inicio || 'N/A');
+                const supervisorStr = escapeHTML(item.supervisor || 'N/A');
+                const asesorStr = escapeHTML(item.asesor_prevencion || 'N/A');
+                const peligros = parseInt(item.cant_peligros) || 0;
+                const hazardClass = peligros >= 5 ? 'hazards-high' : 'hazards';
+
+                const versionNum = parseInt(item.version || 1, 10);
+                const versionBadge = `<span class="prev-version-badge ${versionNum > 1 ? 'v-edited' : ''}">v${versionNum}</span>`;
+
+                html += `
+                    <tr>
+                        <td><span class="prev-cell-fundo">${fundoStr}</span> ${versionBadge}</td>
+                        <td><span class="prev-cell-faena">${faenaStr}</span></td>
+                        <td><span style="font-size:12.5px; font-weight:600;">${fechaStr}</span></td>
+                        <td>
+                            <div class="prev-cell-supervisor">${supervisorStr}</div>
+                            <div class="prev-cell-asesor">Prev: ${asesorStr}</div>
+                        </td>
+                        <td class="center"><span class="prev-cell-count participants">${item.cant_participantes || 0}</span></td>
+                        <td class="center"><span class="prev-cell-count ${hazardClass}">${peligros}</span></td>
+                        <td><span class="prev-cell-date">${dateStr}</span></td>
+                        <td class="center">
+                            <div class="prev-actions-wrap">
+                                <button type="button" class="btn-pdf-download" onclick="descargarPdfFormulario('${item.id}')" title="Generar PDF versión actual">
+                                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+                                    PDF
+                                </button>
+                                <button type="button" class="btn-detail-view" onclick="cargarFormularioParaVer('${item.id}')" title="Ver detalle">
+                                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                    Ver
+                                </button>
+                                <button type="button" class="btn-history-view" onclick="verHistorialFormulario('${item.id}')" title="Ver historial de revisiones (v1, v2...)">
+                                    📜 Historial (${versionNum})
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        }
+
+        function verHistorialFormulario(id) {
+            const item = syncedFormsCache.find(f => f.id === id);
+            if (!item) return;
+
+            const modal = document.getElementById('history-modal-overlay');
+            const titleEl = document.getElementById('history-modal-title');
+            const subtitleEl = document.getElementById('history-modal-subtitle');
+            const bodyEl = document.getElementById('history-modal-body');
+
+            if (!modal || !bodyEl) return;
+
+            const fundoStr = escapeHTML(item.fundo_instalacion || 'Sin fundo');
+            const faenaStr = escapeHTML(item.faena || 'Sin faena');
+            const currentVersion = parseInt(item.version || 1, 10);
+            const historyList = item.version_history || [];
+
+            if (titleEl) titleEl.textContent = `📜 Historial de Revisiones: ${fundoStr}`;
+            if (subtitleEl) subtitleEl.textContent = `Faena: ${faenaStr} | Versión actual activa: v${currentVersion}`;
+
+            let html = '';
+
+            // 1. Versión Actual (Principal)
+            const dateCurrent = item.synced_at ? new Date(item.synced_at).toLocaleString('es-CL') : (item.saved_at ? new Date(item.saved_at).toLocaleString('es-CL') : 'N/A');
+            html += `
+                <div class="history-version-item current">
+                    <div>
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                            <span class="history-version-tag current">v${currentVersion} (Actual)</span>
+                            <span style="font-size:12px; font-weight:600; color:var(--text-muted);">${dateCurrent}</span>
+                        </div>
+                        <div style="font-size:12px; color:var(--text-main);">
+                            Supervisor: <strong>${escapeHTML(item.supervisor || 'N/A')}</strong> | Participantes: ${item.cant_participantes || 0} | Peligros: ${item.cant_peligros || 0}
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:6px;">
+                        <button type="button" class="btn-pdf-download" onclick="descargarPdfFormulario('${item.id}'); cerrarModalHistorial();">
+                            📄 PDF v${currentVersion}
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            // 2. Historial de versiones anteriores (en orden descendente)
+            if (historyList.length > 0) {
+                const historyReversed = [...historyList].reverse();
+                historyReversed.forEach((hist, idx) => {
+                    const vNum = hist.version || (historyList.length - idx);
+                    const histDate = hist.synced_at ? new Date(hist.synced_at).toLocaleString('es-CL') : (hist.saved_at ? new Date(hist.saved_at).toLocaleString('es-CL') : 'N/A');
+                    const realIndex = historyList.length - 1 - idx;
+
+                    html += `
+                        <div class="history-version-item">
+                            <div>
+                                <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                                    <span class="history-version-tag previous">v${vNum}</span>
+                                    <span style="font-size:12px; font-weight:600; color:var(--text-muted);">${histDate}</span>
+                                </div>
+                                <div style="font-size:12px; color:var(--text-muted);">
+                                    Revisión histórica archivada | Participantes: ${hist.cant_participantes || 0} | Peligros: ${hist.cant_peligros || 0}
+                                </div>
+                            </div>
+                            <div style="display:flex; gap:6px;">
+                                <button type="button" class="btn-detail-view" onclick="descargarPdfVersionHistorica('${item.id}', ${realIndex}); cerrarModalHistorial();">
+                                    📄 PDF v${vNum}
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+            } else {
+                html += `
+                    <div style="text-align:center; padding:20px; font-size:13px; color:var(--text-muted);">
+                        ℹ️ Este formulario se encuentra en su versión inicial (v1) y no registra modificaciones anteriores.
+                    </div>
+                `;
+            }
+
+            bodyEl.innerHTML = html;
+            modal.style.display = 'flex';
+        }
+
+        function cerrarModalHistorial() {
+            const modal = document.getElementById('history-modal-overlay');
+            if (modal) modal.style.display = 'none';
+        }
+
+        async function descargarPdfVersionHistorica(formId, historyIndex) {
+            const item = syncedFormsCache.find(f => f.id === formId);
+            if (!item || !item.version_history || !item.version_history[historyIndex]) {
+                showToast('❌ No se encontró la versión histórica especificada', 'danger');
+                return;
+            }
+            const histRecord = item.version_history[historyIndex];
+            const histData = histRecord.data_payload;
+
+            showToast(`Generando PDF versión v${histRecord.version || (historyIndex + 1)}...`, 'info');
+            
+            deserializeForm(histData);
+            setTimeout(() => {
+                exportarAPdf();
+            }, 300);
+        }
+
+        async function descargarPdfFormulario(id) {
+            showToast('Recuperando datos del servidor...', 'info');
+            let formRecord = syncedFormsCache.find(f => f.id === id);
+
+            if (!formRecord || !formRecord.data) {
+                try {
+                    const res = await tryFetchWithFallback(`/api/forms/${id}`);
+                    const json = await res.json();
+                    if (json.success && json.form) {
+                        formRecord = json.form;
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+
+            if (!formRecord || !formRecord.data) {
+                showToast('Error: No se encontraron los datos completos del registro', 'danger');
+                return;
+            }
+
+            const currentFormData = serializeForm();
+            deserializeForm(formRecord.data);
+
+            showToast('Generando PDF oficial desde los datos de la base de datos...', 'info');
+            setTimeout(() => {
+                exportarAPdf();
+                // Restore user's current draft after generating PDF
+                setTimeout(() => {
+                    deserializeForm(currentFormData);
+                }, 800);
+            }, 300);
+        }
+
+        function cargarFormularioParaVer(id) {
+            const formRecord = syncedFormsCache.find(f => f.id === id);
+            if (!formRecord || !formRecord.data) return;
+
+            const formContainer = document.getElementById('view-form-container');
+            const prevContainer = document.getElementById('view-prevencionista-container');
+            if (formContainer) formContainer.style.display = 'block';
+            if (prevContainer) prevContainer.style.display = 'none';
+
+            deserializeForm(formRecord.data);
+
+            // Ocultar botones de guardado/sincronización
+            const actionBtns = document.getElementById('offline-dashboard');
+            if (actionBtns) actionBtns.style.display = 'none';
+            const submitContainer = document.getElementById('submit-container');
+            if (submitContainer) submitContainer.style.display = 'none';
+
+            let backBtn = document.getElementById('btn-back-to-prevencionista');
+            if (!backBtn) {
+                backBtn = document.createElement('button');
+                backBtn.id = 'btn-back-to-prevencionista';
+                backBtn.type = 'button';
+                backBtn.className = 'btn-secondary';
+                backBtn.style.cssText = 'width:100%; padding:14px; margin-bottom:15px; background:var(--primary); color:white; font-weight:bold; font-size:14px; border:none; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);';
+                backBtn.innerHTML = '← Volver a la Lista de Registros Sincronizados';
+                backBtn.onclick = function() {
+                    if (formContainer) formContainer.style.display = 'none';
+                    if (prevContainer) prevContainer.style.display = 'block';
+                    if (actionBtns) actionBtns.style.display = 'block';
+                    if (submitContainer) submitContainer.style.display = 'flex';
+                };
+                formContainer.insertBefore(backBtn, formContainer.firstChild);
+            } else {
+                backBtn.style.display = 'flex';
+            }
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            showToast(`Viendo registro de ${formRecord.fundo_instalacion || 'BD'} (Modo Lectura)`, 'info');
         }
 
         function borrarFormulario(formId) {
@@ -1874,16 +2653,25 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        function guardarBorrador() {
+        async function guardarBorrador() {
             if (!currentActiveFormId) currentActiveFormId = 'irf_' + Date.now();
+
+            // Commit signature pad values to hidden input fields if available
+            try {
+                if (typeof pad0 !== 'undefined' && pad0 && pad0.save) pad0.save();
+                if (typeof pad1 !== 'undefined' && pad1 && pad1.save) pad1.save();
+                if (typeof pad2 !== 'undefined' && pad2 && pad2.save) pad2.save();
+                if (typeof pad3 !== 'undefined' && pad3 && pad3.save) pad3.save();
+                if (typeof pad4 !== 'undefined' && pad4 && pad4.save) pad4.save();
+            } catch (e) {
+                console.warn('Signature pad save warning:', e);
+            }
 
             const fundoEl = document.getElementById('fundo_instalacion');
             const fechaEl = document.getElementById('fecha_inicio');
             const fundo = fundoEl?.value?.trim() || 'Sin nombre';
             const fecha = fechaEl?.value || new Date().toISOString().split('T')[0];
-            const nombreAuto = `IRF - ${fundo} (${fecha})`;
-
-            const nombre = prompt('Nombre para este formulario:', nombreAuto) || nombreAuto;
+            const nombre = `IRF - ${fundo} (${fecha})`;
 
             const formObj = {
                 id: currentActiveFormId,
@@ -1892,11 +2680,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 data: serializeForm()
             };
 
-            // Save full data
-            localStorage.setItem('irf_form_' + currentActiveFormId, JSON.stringify(formObj));
+            let savedLocally = false;
+            try {
+                localStorage.setItem('irf_form_' + currentActiveFormId, JSON.stringify(formObj));
+                savedLocally = true;
+            } catch (quotaErr) {
+                console.warn('LocalStorage Quota Exceeded, cleaning old synced items:', quotaErr);
+                try {
+                    let list = getSavedFormsList();
+                    const unSynced = list.filter(item => !item.synced);
+                    const synced = list.filter(item => item.synced);
+                    if (synced.length > 0) {
+                        synced.forEach(s => localStorage.removeItem('irf_form_' + s.id));
+                        setSavedFormsList(unSynced);
+                    }
+                    localStorage.setItem('irf_form_' + currentActiveFormId, JSON.stringify(formObj));
+                    savedLocally = true;
+                } catch (retryErr) {
+                    console.error('Failed to save to localStorage after cleanup:', retryErr);
+                }
+            }
 
             // Update index
-            let list = getSavedFormsList();
+            let list = getSavedFormsList() || [];
             const existing = list.findIndex(f => f.id === currentActiveFormId);
             const indexEntry = { id: currentActiveFormId, nombre: nombre, savedAt: formObj.savedAt };
             if (existing >= 0) {
@@ -1904,17 +2710,31 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 list.push(indexEntry);
             }
-            setSavedFormsList(list);
-            renderSavedForms();
-            showToast('✅ Formulario guardado: "' + nombre + '"', 'success');
+
+            try {
+                setSavedFormsList(list);
+                renderSavedForms();
+            } catch (e) {
+                console.warn('Error updating saved forms UI:', e);
+            }
+
+            if (savedLocally) {
+                showToast('✅ Formulario guardado localmente: "' + nombre + '"', 'success');
+            } else {
+                showToast('⚠️ Formulario preparado para sincronización.', 'info');
+            }
+
+            return formObj;
         }
 
-        function guardarFinalizado() {
-            // guardarFinalizado now just calls guardarBorrador (same localStorage system)
-            guardarBorrador();
+        async function guardarFinalizado() {
+            showToast('💾 Guardando formulario y sincronizando...', 'info');
+            const formObj = await guardarBorrador();
+            await sincronizarTodos(formObj);
         }
 
 // --- Expose to global scope for inline HTML handlers ---
+window.configurarServidorUrl = configurarServidorUrl;
 window.actualizarTablaPeligros = actualizarTablaPeligros;
 window.toggleSosModal = toggleSosModal;
 window.toggleAccordion = toggleAccordion;
@@ -1949,6 +2769,20 @@ window.editarFormulario = cargarFormulario;
 window.cargarFormulario = cargarFormulario;
 window.showToast = showToast;
 window.serializeForm = serializeForm;
+window.switchMainTab = switchMainTab;
+window.cargarFormulariosPrevencionista = cargarFormulariosPrevencionista;
+window.filtrarTablaPrevencionista = filtrarTablaPrevencionista;
+window.descargarPdfFormulario = descargarPdfFormulario;
+window.cargarFormularioParaVer = cargarFormularioParaVer;
+window.procesarLogin = procesarLogin;
+window.cerrarSesion = cerrarSesion;
+window.removerFiltroPrevencionista = removerFiltroPrevencionista;
+window.limpiarFiltrosPrevencionista = limpiarFiltrosPrevencionista;
+window.verHistorialFormulario = verHistorialFormulario;
+window.cerrarModalHistorial = cerrarModalHistorial;
+window.descargarPdfVersionHistorica = descargarPdfVersionHistorica;
 window.participantesList = participantesList;
 window.peligrosList = peligrosList;
+
+
 
