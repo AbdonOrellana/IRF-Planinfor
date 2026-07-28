@@ -82,7 +82,8 @@ export async function initDb() {
                 version INT DEFAULT 1,
                 version_history JSONB DEFAULT '[]'::jsonb,
                 synced_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-                data_payload JSONB NOT NULL
+                data_payload JSONB NOT NULL,
+                is_deleted BOOLEAN DEFAULT FALSE
             );
         `);
 
@@ -90,6 +91,7 @@ export async function initDb() {
         await client.query(`
             ALTER TABLE formularios_irf ADD COLUMN IF NOT EXISTS version INT DEFAULT 1;
             ALTER TABLE formularios_irf ADD COLUMN IF NOT EXISTS version_history JSONB DEFAULT '[]'::jsonb;
+            ALTER TABLE formularios_irf ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;
         `);
         
         client.release();
@@ -320,6 +322,7 @@ export async function getAllFormRecords() {
             SELECT id, nombre, fundo_instalacion, faena, fecha_inicio, supervisor, asesor_prevencion, 
                    cant_participantes, cant_peligros, version, version_history, synced_at, data_payload
             FROM formularios_irf 
+            WHERE is_deleted IS NOT TRUE
             ORDER BY synced_at DESC
         `);
         return res.rows.map(row => ({
@@ -339,7 +342,7 @@ export async function getAllFormRecords() {
         }));
     } else {
         const db = getJsonDb();
-        return db.sort((a, b) => new Date(b.synced_at) - new Date(a.synced_at)).map(row => ({
+        return db.filter(f => !f.is_deleted).sort((a, b) => new Date(b.synced_at) - new Date(a.synced_at)).map(row => ({
             id: row.id,
             nombre: row.nombre,
             fundo_instalacion: row.fundo_instalacion,
@@ -392,10 +395,13 @@ export async function getFormRecordById(id) {
  */
 export async function deleteFormRecord(id) {
     if (isPgConnected && pool) {
-        await pool.query('DELETE FROM formularios_irf WHERE id = $1', [id]);
+        await pool.query('UPDATE formularios_irf SET is_deleted = TRUE WHERE id = $1', [id]);
     } else {
         let db = getJsonDb();
-        db = db.filter(f => f.id !== id);
-        saveJsonDb(db);
+        const idx = db.findIndex(f => f.id === id);
+        if (idx >= 0) {
+            db[idx].is_deleted = true;
+            saveJsonDb(db);
+        }
     }
 }

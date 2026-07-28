@@ -2286,6 +2286,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const panelCount = document.getElementById('prev-panel-count');
 
             const formsList = forms || [];
+            window.currentlyRenderedForms = formsList;
 
             if (metricTotal) metricTotal.textContent = formsList.length;
             if (metricFundos) {
@@ -2366,6 +2367,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                 </button>
                                 <button type="button" class="btn-history-view" onclick="verHistorialFormulario('${item.id}')" title="Ver historial de revisiones (v1, v2...)">
                                     📜 Historial (${versionNum})
+                                </button>
+                                <button type="button" class="btn-history-view" onclick="ocultarRegistro('${item.id}')" title="Ocultar de esta vista" style="background-color: #fee2e2; color: #dc2626; border-color: #fca5a5;">
+                                    🗑️ Ocultar
                                 </button>
                             </div>
                         </td>
@@ -2781,6 +2785,73 @@ window.cerrarModalHistorial = cerrarModalHistorial;
 window.descargarPdfVersionHistorica = descargarPdfVersionHistorica;
 window.participantesList = participantesList;
 window.peligrosList = peligrosList;
+window.ocultarRegistro = ocultarRegistro;
+window.exportarTablaCSV = exportarTablaCSV;
+
+async function ocultarRegistro(id) {
+    if (!confirm('¿Seguro que deseas ocultar este registro de la vista?\nSeguirá existiendo en la base de datos para respaldo, pero ya no aparecerá aquí ni en los reportes.')) return;
+    try {
+        const res = await tryFetchWithFallback(`/api/forms/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+            showToast('Registro ocultado con éxito', 'success');
+            cargarFormulariosPrevencionista();
+        } else {
+            showToast('Error al ocultar el registro en el servidor', 'danger');
+        }
+    } catch (e) {
+        showToast('Error de red al ocultar el registro', 'danger');
+    }
+}
+
+function exportarTablaCSV() {
+    const data = window.currentlyRenderedForms || [];
+    if (data.length === 0) {
+        showToast('No hay datos visibles para exportar', 'warning');
+        return;
+    }
+
+    // Preparar cabeceras y ordenarlas de forma limpia y ordenada
+    const headers = [
+        "Fundo/Instalacion",
+        "Faena",
+        "Fecha",
+        "Supervisor",
+        "Prevencionista",
+        "Nro Participantes",
+        "Nro Peligros",
+        "Version",
+        "Fecha Sincronizacion"
+    ];
+
+    let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; // \uFEFF for UTF-8 BOM so Excel opens it with correct encoding
+    csvContent += headers.join(";") + "\r\n";
+
+    data.forEach(item => {
+        const row = [
+            `"${(item.fundo_instalacion || '').replace(/"/g, '""')}"`,
+            `"${(item.faena || '').replace(/"/g, '""')}"`,
+            `"${(item.fecha_inicio || '')}"`,
+            `"${(item.supervisor || '').replace(/"/g, '""')}"`,
+            `"${(item.asesor_prevencion || '').replace(/"/g, '""')}"`,
+            `"${item.cant_participantes || 0}"`,
+            `"${item.cant_peligros || 0}"`,
+            `"${item.version || 1}"`,
+            `"${item.synced_at ? new Date(item.synced_at).toLocaleString('es-CL') : (item.saved_at ? new Date(item.saved_at).toLocaleString('es-CL') : '')}"`
+        ];
+        csvContent += row.join(";") + "\r\n";
+    });
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    const currentDate = new Date().toISOString().split('T')[0];
+    link.setAttribute("download", `Reporte_IRF_${currentDate}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    showToast('Exportación a Excel generada', 'success');
+}
 
 
 
