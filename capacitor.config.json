@@ -1,8 +1,9 @@
 {
-    "appId":  "com.mingeo.irf",
-    "appName":  "MingeoIRF",
-    "webDir":  "dist",
-    "bundledWebRuntime": false,
-    "server": {
-        "cleartext": true
-    }
+  "appId": "com.mingeo.irf",
+  "appName": "MingeoIRF",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "cleartext": true
+  }
+}
