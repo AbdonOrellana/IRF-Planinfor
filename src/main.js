@@ -3,7 +3,8 @@ import './offlineLogic.js';
 import { Geolocation } from '@capacitor/geolocation';
 import { Printer } from '@capgo/capacitor-printer';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
 
 const updateSW = registerSW({onNeedRefresh() {if (confirm('Nueva actualización disponible. ¿Recargar?')) {updateSW(true);}},onOfflineReady() {console.log('App is ready for offline use!');},});
 
@@ -2804,51 +2805,99 @@ async function ocultarRegistro(id) {
     }
 }
 
-function exportarTablaCSV() {
+async function exportarTablaCSV() {
     const data = window.currentlyRenderedForms || [];
     if (data.length === 0) {
         showToast('No hay datos visibles para exportar', 'warning');
         return;
     }
 
-    // Preparar datos para Excel
-    const excelData = data.map(item => ({
-        "Fundo/Instalacion": item.fundo_instalacion || '',
-        "Faena": item.faena || '',
-        "Fecha": item.fecha_inicio || '',
-        "Supervisor": item.supervisor || '',
-        "Prevencionista": item.asesor_prevencion || '',
-        "Nro Participantes": item.cant_participantes || 0,
-        "Nro Peligros": item.cant_peligros || 0,
-        "Version": item.version || 1,
-        "Fecha Sincronizacion": item.synced_at ? new Date(item.synced_at).toLocaleString('es-CL') : (item.saved_at ? new Date(item.saved_at).toLocaleString('es-CL') : '')
-    }));
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Reporte IRF');
 
-    // Crear worksheet y workbook
-    const ws = XLSX.utils.json_to_sheet(excelData);
-    
-    // Auto-ajustar ancho de columnas para mejor visualización
-    const wscols = [
-        {wch: 25}, // Fundo
-        {wch: 20}, // Faena
-        {wch: 15}, // Fecha
-        {wch: 25}, // Supervisor
-        {wch: 25}, // Prevencionista
-        {wch: 15}, // Partic
-        {wch: 15}, // Peligros
-        {wch: 10}, // Version
-        {wch: 20}  // Sync
+    // Configurar columnas con su ancho
+    worksheet.columns = [
+        { header: 'Fundo / Instalación', key: 'fundo', width: 25 },
+        { header: 'Faena', key: 'faena', width: 22 },
+        { header: 'Fecha', key: 'fecha', width: 15 },
+        { header: 'Supervisor', key: 'supervisor', width: 28 },
+        { header: 'Prevencionista', key: 'prevencionista', width: 28 },
+        { header: 'Participantes', key: 'participantes', width: 14 },
+        { header: 'Peligros', key: 'peligros', width: 12 },
+        { header: 'Versión', key: 'version', width: 10 },
+        { header: 'Fecha de Sincronización', key: 'sync', width: 22 }
     ];
-    ws['!cols'] = wscols;
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Reporte IRF");
+    // Estilizar la cabecera (Fila 1)
+    worksheet.getRow(1).eachCell((cell) => {
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FF1F4E79' } // Un azul premium corporativo
+        };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        cell.border = {
+            top: {style:'thin'},
+            left: {style:'thin'},
+            bottom: {style:'thin'},
+            right: {style:'thin'}
+        };
+    });
+    worksheet.getRow(1).height = 25; // Cabecera más alta
 
-    // Generar y descargar archivo .xlsx
+    // Poblar datos
+    data.forEach((item, index) => {
+        const row = worksheet.addRow({
+            fundo: item.fundo_instalacion || 'Sin fundo',
+            faena: item.faena || 'Sin faena',
+            fecha: item.fecha_inicio || '',
+            supervisor: item.supervisor || '',
+            prevencionista: item.asesor_prevencion || '',
+            participantes: item.cant_participantes || 0,
+            peligros: item.cant_peligros || 0,
+            version: item.version || 1,
+            sync: item.synced_at ? new Date(item.synced_at).toLocaleString('es-CL') : (item.saved_at ? new Date(item.saved_at).toLocaleString('es-CL') : '')
+        });
+
+        // Estilizar celdas de datos con bordes sutiles y alinear números
+        row.eachCell((cell, colNumber) => {
+            cell.border = {
+                top: {style:'hair', color: {argb:'FFD9D9D9'}},
+                left: {style:'hair', color: {argb:'FFD9D9D9'}},
+                bottom: {style:'hair', color: {argb:'FFD9D9D9'}},
+                right: {style:'hair', color: {argb:'FFD9D9D9'}}
+            };
+            if (colNumber >= 6 && colNumber <= 8) {
+                cell.alignment = { horizontal: 'center' }; // Centrar nros
+            }
+        });
+        
+        // Colores intercalados para legibilidad (Zebra striping)
+        if (index % 2 === 1) {
+            row.eachCell((cell) => {
+                cell.fill = {
+                    type: 'pattern',
+                    pattern: 'solid',
+                    fgColor: { argb: 'FFF9F9F9' }
+                };
+            });
+        }
+    });
+
+    // Filtros automáticos
+    worksheet.autoFilter = {
+        from: 'A1',
+        to: 'I1',
+    };
+
+    // Generar archivo
+    const buffer = await workbook.xlsx.writeBuffer();
     const currentDate = new Date().toISOString().split('T')[0];
-    XLSX.writeFile(wb, `Reporte_IRF_${currentDate}.xlsx`);
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    saveAs(blob, `Reporte_IRF_${currentDate}.xlsx`);
     
-    showToast('Exportación a Excel generada exitosamente', 'success');
+    showToast('¡Excel Premium Generado!', 'success');
 }
 
 
