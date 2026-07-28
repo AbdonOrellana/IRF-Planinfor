@@ -1906,7 +1906,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         function getServerUrl() {
-        function getServerUrl() {
             return localStorage.getItem('irf_server_url') || 'http://190.13.189.196:8091';
         }
 
