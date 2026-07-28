@@ -28,20 +28,41 @@ function saveJsonDb(data) {
 }
 
 // PostgreSQL configuration
-const { Pool } = pg;
+const { Pool, Client } = pg;
+const dbName = process.env.DB_NAME || 'irf_db';
 const pgConfig = {
     user: process.env.DB_USER || 'postgres',
     host: process.env.DB_HOST || 'localhost',
-    database: process.env.DB_NAME || 'irf_db',
-    password: process.env.DB_PASSWORD || 'postgres',
+    database: dbName,
+    password: process.env.DB_PASSWORD || 'admin123',
     port: parseInt(process.env.DB_PORT || '5432', 10),
 };
 
 let pool = null;
 let isPgConnected = false;
 
+async function ensureDatabaseExists() {
+    try {
+        const rootClient = new Client({
+            ...pgConfig,
+            database: 'postgres'
+        });
+        await rootClient.connect();
+        const checkRes = await rootClient.query("SELECT 1 FROM pg_database WHERE datname = $1", [dbName]);
+        if (checkRes.rowCount === 0) {
+            console.log(`🔨 Creando base de datos PostgreSQL "${dbName}"...`);
+            await rootClient.query(`CREATE DATABASE "${dbName}"`);
+            console.log(`✅ Base de datos "${dbName}" creada con éxito.`);
+        }
+        await rootClient.end();
+    } catch (e) {
+        console.warn('⚠️ No se pudo verificar/crear la BD en postgres root:', e.message);
+    }
+}
+
 export async function initDb() {
     try {
+        await ensureDatabaseExists();
         pool = new Pool(pgConfig);
         // Test connection
         const client = await pool.connect();
@@ -73,10 +94,10 @@ export async function initDb() {
         
         client.release();
         isPgConnected = true;
-        console.log('✅ PostgreSQL conectado exitosamente y tabla "formularios_irf" (con versiones) lista.');
+        console.log(`✅ PostgreSQL conectado exitosamente a "${dbName}" y tabla "formularios_irf" (con versiones) lista.`);
     } catch (err) {
         isPgConnected = false;
-        console.warn('⚠️ No se pudo conectar a PostgreSQL (detalles abajo). Usando almacenamiento local JSON en server/db.json como respaldo.');
+        console.warn('⚠️ No se pudo conectar a PostgreSQL. Usando almacenamiento local JSON en server/db.json como respaldo.');
         console.warn('   Mensaje de error:', err.message);
         getJsonDb(); // ensure file exists
     }
