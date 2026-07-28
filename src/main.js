@@ -2144,11 +2144,10 @@ document.addEventListener('DOMContentLoaded', () => {
             // Extraer fundos únicos
             const fundos = Array.from(new Set((forms || []).map(f => (f.fundo_instalacion || '').trim()).filter(Boolean))).sort();
             
-            // Extraer supervisores y asesores únicos
+            // Extraer supervisores únicos
             const supervisoresSet = new Set();
             (forms || []).forEach(f => {
                 if (f.supervisor && f.supervisor.trim()) supervisoresSet.add(f.supervisor.trim());
-                if (f.asesor_prevencion && f.asesor_prevencion.trim()) supervisoresSet.add(f.asesor_prevencion.trim());
             });
             const supervisores = Array.from(supervisoresSet).sort();
 
@@ -2184,11 +2183,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (itemFundo !== fundoValue) return false;
                 }
 
-                // Filtro Supervisor / Asesor
+                // Filtro Supervisor
                 if (supervisorValue) {
                     const itemSup = (item.supervisor || '').toLowerCase();
-                    const itemPrev = (item.asesor_prevencion || '').toLowerCase();
-                    if (itemSup !== supervisorValue && itemPrev !== supervisorValue) return false;
+                    if (itemSup !== supervisorValue) return false;
                 }
 
                 // Filtro Fecha (Compara YYYY-MM-DD contra fecha_inicio o synced_at/saved_at)
