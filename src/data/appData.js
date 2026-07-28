@@ -1,4 +1,5 @@
 export const trabajadoresMap = {
+            "Rodrigo Alexis Aguilera Cid": "Gerente General",
             "José Ismael Aburto San Martín": "Encargado de barreras fitosanitarias",
             "José Antonio Albistur Gómez": "Ing de negocios y desarrollos sig",
             "Edison Ariel Alegría Roca": "Jefe de área planificación silvícola",
