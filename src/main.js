@@ -1906,7 +1906,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         function getServerUrl() {
-            return localStorage.getItem('irf_server_url') || 'https://interim-nylon-slide-survivors.trycloudflare.com';
+            return localStorage.getItem('irf_server_url') || 'http://services.planinfor.cl:8091';
         }
 
         function setServerUrl(url) {
@@ -1930,12 +1930,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         async function tryFetchWithFallback(endpoint, options = {}) {
             const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) || !!window.Android;
-            const configuredUrl = (getServerUrl() || 'https://interim-nylon-slide-survivors.trycloudflare.com').replace(/\/$/, '');
+            const configuredUrl = (getServerUrl() || 'http://services.planinfor.cl:8091').replace(/\/$/, '');
 
             const candidateUrls = [
                 configuredUrl,
-                'https://interim-nylon-slide-survivors.trycloudflare.com',
-                'http://192.168.99.172:3000'
+                'http://services.planinfor.cl:8091',
+                'http://190.13.189.196:8091'
             ];
 
             const uniqueCandidates = [...new Set(candidateUrls)];
