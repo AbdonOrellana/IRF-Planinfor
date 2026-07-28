@@ -3,6 +3,7 @@ import './offlineLogic.js';
 import { Geolocation } from '@capacitor/geolocation';
 import { Printer } from '@capgo/capacitor-printer';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
+import * as XLSX from 'xlsx';
 
 const updateSW = registerSW({onNeedRefresh() {if (confirm('Nueva actualización disponible. ¿Recargar?')) {updateSW(true);}},onOfflineReady() {console.log('App is ready for offline use!');},});
 
@@ -2810,47 +2811,44 @@ function exportarTablaCSV() {
         return;
     }
 
-    // Preparar cabeceras y ordenarlas de forma limpia y ordenada
-    const headers = [
-        "Fundo/Instalacion",
-        "Faena",
-        "Fecha",
-        "Supervisor",
-        "Prevencionista",
-        "Nro Participantes",
-        "Nro Peligros",
-        "Version",
-        "Fecha Sincronizacion"
-    ];
+    // Preparar datos para Excel
+    const excelData = data.map(item => ({
+        "Fundo/Instalacion": item.fundo_instalacion || '',
+        "Faena": item.faena || '',
+        "Fecha": item.fecha_inicio || '',
+        "Supervisor": item.supervisor || '',
+        "Prevencionista": item.asesor_prevencion || '',
+        "Nro Participantes": item.cant_participantes || 0,
+        "Nro Peligros": item.cant_peligros || 0,
+        "Version": item.version || 1,
+        "Fecha Sincronizacion": item.synced_at ? new Date(item.synced_at).toLocaleString('es-CL') : (item.saved_at ? new Date(item.saved_at).toLocaleString('es-CL') : '')
+    }));
 
-    let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; // \uFEFF for UTF-8 BOM so Excel opens it with correct encoding
-    csvContent += headers.join(";") + "\r\n";
-
-    data.forEach(item => {
-        const row = [
-            `"${(item.fundo_instalacion || '').replace(/"/g, '""')}"`,
-            `"${(item.faena || '').replace(/"/g, '""')}"`,
-            `"${(item.fecha_inicio || '')}"`,
-            `"${(item.supervisor || '').replace(/"/g, '""')}"`,
-            `"${(item.asesor_prevencion || '').replace(/"/g, '""')}"`,
-            `"${item.cant_participantes || 0}"`,
-            `"${item.cant_peligros || 0}"`,
-            `"${item.version || 1}"`,
-            `"${item.synced_at ? new Date(item.synced_at).toLocaleString('es-CL') : (item.saved_at ? new Date(item.saved_at).toLocaleString('es-CL') : '')}"`
-        ];
-        csvContent += row.join(";") + "\r\n";
-    });
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    const currentDate = new Date().toISOString().split('T')[0];
-    link.setAttribute("download", `Reporte_IRF_${currentDate}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    // Crear worksheet y workbook
+    const ws = XLSX.utils.json_to_sheet(excelData);
     
-    showToast('Exportación a Excel generada', 'success');
+    // Auto-ajustar ancho de columnas para mejor visualización
+    const wscols = [
+        {wch: 25}, // Fundo
+        {wch: 20}, // Faena
+        {wch: 15}, // Fecha
+        {wch: 25}, // Supervisor
+        {wch: 25}, // Prevencionista
+        {wch: 15}, // Partic
+        {wch: 15}, // Peligros
+        {wch: 10}, // Version
+        {wch: 20}  // Sync
+    ];
+    ws['!cols'] = wscols;
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Reporte IRF");
+
+    // Generar y descargar archivo .xlsx
+    const currentDate = new Date().toISOString().split('T')[0];
+    XLSX.writeFile(wb, `Reporte_IRF_${currentDate}.xlsx`);
+    
+    showToast('Exportación a Excel generada exitosamente', 'success');
 }
 
 
