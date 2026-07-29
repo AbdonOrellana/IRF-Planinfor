@@ -3,6 +3,7 @@ apply plugin: 'com.android.application'
 android {
     namespace = "com.mingeo.irf"
     compileSdk = rootProject.ext.compileSdkVersion
+    setProperty("archivesBaseName", "IRF-Planinfor")
     defaultConfig {
         applicationId "com.mingeo.irf"
         minSdkVersion rootProject.ext.minSdkVersion

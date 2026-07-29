@@ -1,6 +1,6 @@
 {
   "appId": "com.mingeo.irf",
-  "appName": "MingeoIRF",
+  "appName": "IRF-Planinfor",
   "webDir": "dist",
   "bundledWebRuntime": false,
   "server": {
