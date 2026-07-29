@@ -785,7 +785,7 @@ function initFundoAutocomplete() {
                     const jefe = document.getElementById('jefe_faena').value.trim();
                     const clave = document.getElementById('clave_jefe_faena').value.trim();
                     const prev = document.getElementById('asesor_prev_riesgos').value.trim();
-                    const tel = document.getElementById('telefono_jefe_faena').value.trim();
+                    const tel = (document.getElementById('codigo_pais_jefe').value + ' ' + document.getElementById('numero_jefe_faena').value).trim();
 
                     isComplete = !!(sup && jefe && clave && prev && tel);
                     hasData = !!(sup || jefe || clave || prev || tel);
@@ -1311,7 +1311,7 @@ function initFundoAutocomplete() {
             const jefe = document.getElementById('jefe_faena').value;
             const claveJefe = document.getElementById('clave_jefe_faena').value;
             const asesor = document.getElementById('asesor_prev_riesgos').value;
-            const fonoJefe = document.getElementById('telefono_jefe_faena').value;
+            const fonoJefe = document.getElementById('codigo_pais_jefe').value + ' ' + document.getElementById('numero_jefe_faena').value;
             const latitud = document.getElementById('latitud').value;
             const longitud = document.getElementById('longitud').value;
 
@@ -1511,6 +1511,7 @@ function initFundoAutocomplete() {
                         <td style="font-size: 7px; line-height: 1.2; padding: 2px;">
                             Fono Denuncia : 09-94425100<br>
                             Central DAC : 043-2636281 &nbsp;&nbsp; Incendios : 800441000<br>
+                            Teléfono EESS : +569 99494080<br>
                             Teléfono Jefe de Faena : ${escapeHTML(fonoJefe)}
                         </td>
                     </tr>
