@@ -820,6 +820,12 @@ function initFundoAutocomplete() {
         // Mobile Animated Toast Alerts
         function showToast(message, type = 'info') {
             const container = document.getElementById('toast-container');
+            
+            // Limit to 2 visible toasts maximum to prevent screen clutter
+            while (container.children.length >= 2) {
+                container.removeChild(container.firstChild);
+            }
+            
             const toast = document.createElement('div');
             toast.className = `toast ${type}`;
 
@@ -837,8 +843,10 @@ function initFundoAutocomplete() {
 
             setTimeout(() => {
                 toast.style.animation = 'slideInMobile 0.3s reverse forwards';
-                setTimeout(() => toast.remove(), 300);
-            }, 3500);
+                setTimeout(() => {
+                    if (container.contains(toast)) toast.remove();
+                }, 300);
+            }, 2500);
         }
 
         // Satellital Coordinates GPS auto-capture API (Web + Capacitor compatible)
@@ -2160,15 +2168,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     clearTimeout(timeoutId);
                     lastError = err;
                     console.warn(`Intento fallido a ${targetUrl}:`, err);
-                    if (!isNative) {
-                        try {
-                            const webRes = await fetch(baseUrl + endpoint, { ...options });
-                            if (webRes.ok) return webRes;
-                            lastResponse = webRes;
-                        } catch (e2) {
-                            lastError = e2;
-                        }
-                    }
                 }
             }
 
