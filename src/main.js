@@ -2092,14 +2092,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         function getServerUrl() {
-            return localStorage.getItem('irf_server_url') || 'https://services.planinfor.cl:8091';
+            let url = localStorage.getItem('irf_server_url');
+            if (!url || url.startsWith('http://services.planinfor.cl') || url.startsWith('http://190.13.189.196')) {
+                url = 'https://services.planinfor.cl:8091';
+                localStorage.setItem('irf_server_url', url);
+            }
+            return url;
         }
 
         function setServerUrl(url) {
             if (url) {
                 let clean = url.trim().replace(/\/$/, '');
                 if (!clean.startsWith('http://') && !clean.startsWith('https://')) {
-                    clean = 'http://' + clean;
+                    clean = 'https://' + clean;
+                }
+                if (clean.includes('services.planinfor.cl')) {
+                    clean = clean.replace(/^http:\/\//, 'https://');
                 }
                 localStorage.setItem('irf_server_url', clean);
             }
@@ -2125,12 +2133,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const candidateUrls = [
                 configuredUrl,
-                'https://services.planinfor.cl:8091',
-                'https://190.13.189.196:8091'
+                'https://services.planinfor.cl:8091'
             ];
 
             const uniqueCandidates = [...new Set(candidateUrls)];
             let lastError = null;
+            let lastResponse = null;
 
             for (const baseUrl of uniqueCandidates) {
                 const targetUrl = isNative ? (baseUrl + endpoint) : (endpoint.startsWith('/') ? endpoint : '/' + endpoint);
@@ -2147,7 +2155,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     });
                     clearTimeout(timeoutId);
-                    if (res.ok || res.status < 500) return res;
+                    if (res.ok) return res;
+                    lastResponse = res;
                 } catch (err) {
                     clearTimeout(timeoutId);
                     lastError = err;
@@ -2156,6 +2165,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         try {
                             const webRes = await fetch(baseUrl + endpoint, { ...options });
                             if (webRes.ok) return webRes;
+                            lastResponse = webRes;
                         } catch (e2) {
                             lastError = e2;
                         }
@@ -2163,7 +2173,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            throw lastError || new Error('No se pudo conectar a ningún servidor disponible');
+            if (lastResponse) return lastResponse;
+            throw lastError || new Error('No se pudo conectar a ningún servidor de sincronización.');
         }
 
         async function sincronizarTodos(directFormObj) {
