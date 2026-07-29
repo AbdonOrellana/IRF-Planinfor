@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 
 <head>
@@ -28,12 +28,12 @@
                     <input type="text" id="login-username" placeholder="Ingrese su usuario..." required autocomplete="username">
                 </div>
                 <div class="form-group">
-                    <label for="login-password">ContraseÃ±a</label>
-                    <input type="password" id="login-password" placeholder="Ingrese su contraseÃ±a..." required autocomplete="current-password">
+                    <label for="login-password">Contraseña</label>
+                    <input type="password" id="login-password" placeholder="Ingrese su contraseña..." required autocomplete="current-password">
                 </div>
                 <button type="submit" class="btn-login-submit">
                     <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
-                    Iniciar SesiÃ³n
+                    Iniciar Sesión
                 </button>
                 <div id="login-error-msg" class="login-error" style="display:none;"></div>
             </form>
@@ -45,11 +45,11 @@
         <header class="app-header">
             <div class="brand-text">
                 <h1>MINGEO IRF - CONTROL DE RIESGOS</h1>
-                <span>VersiÃ³n 17 - Faenas Especiales & Seguridad</span>
+                <span>Versión 17 - Faenas Especiales & Seguridad</span>
             </div>
             <div class="header-actions">
-                <button type="button" id="btn-logout" class="btn-circle" onclick="cerrarSesion()" title="Cerrar SesiÃ³n Prevencionista" style="display:none;">
-                    ðŸšª
+                <button type="button" id="btn-logout" class="btn-circle" onclick="cerrarSesion()" title="Cerrar Sesión Prevencionista" style="display:none;">
+                    🚪
                 </button>
                 <button type="button" id="btn-header-print" class="btn-circle" onclick="exportarAPdf()" title="Imprimir o Exportar PDF">
                     <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"
@@ -78,13 +78,13 @@
             </div>
         </header>
 
-        <!-- NavegaciÃ³n por PestaÃ±as Principales (Oculta para evitar cambiar de vista) -->
+        <!-- Navegación por Pestañas Principales (Oculta para evitar cambiar de vista) -->
         <nav class="main-tabs" style="display: none;">
             <button type="button" class="tab-btn active" id="tab-btn-form" onclick="switchMainTab('form')">
-                ðŸ“ Formulario IRF
+                📝 Formulario IRF
             </button>
             <button type="button" class="tab-btn" id="tab-btn-prevencionista" onclick="switchMainTab('prevencionista')">
-                ðŸ›¡ï¸ Vista Prevencionista (Base de Datos)
+                🛡️ Vista Prevencionista (Base de Datos)
             </button>
         </nav>
 
@@ -99,7 +99,7 @@
                             d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
                         </path>
                     </svg>
-                    ðŸ“¦ Bandeja de Formularios Guardados
+                    📦 Bandeja de Formularios Guardados
                 </span>
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <span id="sync-connection-badge" class="status-badge status-empty">Red...</span>
@@ -114,12 +114,12 @@
                     <div
                         style="display:flex; justify-content: space-between; align-items:center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px;">
                         <button type="button" class="btn-action-outline" onclick="nuevoFormulario()"
-                            style="padding: 9px 12px; font-size:12px; flex: 1;">ðŸ“„ Nuevo</button>
+                            style="padding: 9px 12px; font-size:12px; flex: 1;">📄 Nuevo</button>
                         <button type="button" id="btn-sync-all" class="btn-action-primary" onclick="sincronizarTodos()"
-                            style="padding: 9px 12px; font-size:12px; flex: 1.5;">ðŸ”„ Sincronizar</button>
+                            style="padding: 9px 12px; font-size:12px; flex: 1.5;">🔄 Sincronizar</button>
                     </div>
                     <div id="saved-forms-list" class="dashboard-container">
-                        <!-- Formularios renderizados dinÃ¡micamente aquÃ­ -->
+                        <!-- Formularios renderizados dinámicamente aquí -->
                     </div>
                 </div>
             </div>
@@ -127,7 +127,7 @@
 
         <form id="irf-form" action="#" method="POST">
 
-            <!-- SECCIÃ“N 1: Antecedentes de la Faena -->
+            <!-- SECCIÓN 1: Antecedentes de la Faena -->
             <div class="accordion-card active" id="card-step-1">
                 <div class="accordion-header" onclick="toggleAccordion('card-step-1')">
                     <span class="accordion-header-title">
@@ -140,7 +140,7 @@
                         1. Antecedentes de la Faena
                     </span>
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <span id="status-step-1" class="status-badge status-empty">VacÃ­o</span>
+                        <span id="status-step-1" class="status-badge status-empty">Vacío</span>
                         <svg class="accordion-icon" width="16" height="16" fill="none" stroke="currentColor"
                             stroke-width="2.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"></path>
@@ -152,22 +152,22 @@
                         <div class="form-grid">
                             <div class="form-group">
                                 <label for="gerencia">Gerencia</label>
-                                <input type="text" id="gerencia" name="gerencia" value="Tecnologia y PlanificaciÃ³n"
+                                <input type="text" id="gerencia" name="gerencia" value="Tecnologia y Planificación"
                                     readonly>
                             </div>
                             <div class="form-group">
-                                <label for="area_relacionamiento">Ãrea Relacionamiento *</label>
+                                <label for="area_relacionamiento">Área Relacionamiento *</label>
                                 <input type="text" id="area_relacionamiento" name="area_relacionamiento"
                                     placeholder="Nombre del fundo..." required>
                             </div>
                             <div class="form-group">
                                 <label for="estados_proyecto">Faena / Estado *</label>
                                 <select name="estado" id="estados_proyecto" required>
-                                    <option value="" disabled selected>-- Seleccione una opciÃ³n --</option>
+                                    <option value="" disabled selected>-- Seleccione una opción --</option>
                                     <option value="trazado">Trazado</option>
-                                    <option value="tipificacion">TipificaciÃ³n</option>
-                                    <option value="planificacion">PlanificaciÃ³n</option>
-                                    <option value="marcacion_zp">MarcaciÃ³n ZP</option>
+                                    <option value="tipificacion">Tipificación</option>
+                                    <option value="planificacion">Planificación</option>
+                                    <option value="marcacion_zp">Marcación ZP</option>
                                     <option value="control_calidad">Control Calidad Prod. Planta</option>
                                     <option value="vuelo_dron">Vuelo Dron</option>
                                     <option value="monitoreo_agua">Monitoreo de Agua</option>
@@ -181,7 +181,7 @@
                                 <input type="date" id="fecha_inicio" name="fecha_inicio" required>
                             </div>
                             <div class="form-group">
-                                <label for="num_trabajadores">NÂ° Trabajadores *</label>
+                                <label for="num_trabajadores">N° Trabajadores *</label>
                                 <select id="num_trabajadores" name="num_trabajadores" required>
                                     <option disabled selected value="">Seleccionar</option>
                                     <option value="1">1</option>
@@ -207,7 +207,7 @@
                                 </select>
                             </div>
                             <div class="form-group">
-                                <label for="num_vehiculos">NÂ° VehÃ­culos Faena *</label>
+                                <label for="num_vehiculos">N° Vehículos Faena *</label>
                                 <select id="num_vehiculos" name="num_vehiculos" required>
                                     <option disabled selected value="">Seleccionar</option>
                                     <option value="1">1</option>
@@ -218,7 +218,7 @@
                                 </select>
                             </div>
                             <div class="form-group full-width">
-                                <label for="fundo_instalacion">Fundo (s) o InstalaciÃ³n (es) *</label>
+                                <label for="fundo_instalacion">Fundo (s) o Instalación (es) *</label>
                                 <input type="text" id="fundo_instalacion" name="fundo_instalacion"
                                     placeholder="Detalle los fundos o instalaciones intervenidos..." required>
                             </div>
@@ -227,7 +227,7 @@
                 </div>
             </div>
 
-            <!-- SECCIÃ“N 2: Antecedentes de EESS -->
+            <!-- SECCIÓN 2: Antecedentes de EESS -->
             <div class="accordion-card" id="card-step-2">
                 <div class="accordion-header" onclick="toggleAccordion('card-step-2')">
                     <span class="accordion-header-title">
@@ -240,7 +240,7 @@
                         2. Antecedentes de EESS
                     </span>
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <span id="status-step-2" class="status-badge status-empty">VacÃ­o</span>
+                        <span id="status-step-2" class="status-badge status-empty">Vacío</span>
                         <svg class="accordion-icon" width="16" height="16" fill="none" stroke="currentColor"
                             stroke-width="2.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"></path>
@@ -268,7 +268,7 @@
                             <div class="form-group">
                                 <label for="clave_jefe_faena">Clave Jefe de Faena *</label>
                                 <input type="text" id="clave_jefe_faena" name="clave_jefe_faena"
-                                    placeholder="CÃ³digo o clave asignada..." required>
+                                    placeholder="Código o clave asignada..." required>
                             </div>
                             <div class="form-group">
                                 <label for="asesor_prev_riesgos">Asesor Prev. Riesgos *</label>
@@ -276,7 +276,7 @@
                                     placeholder="Nombre del asesor..." required list="trabajadores_list">
                             </div>
                             <div class="form-group">
-                                  <label>TelÃ©fono Jefe de Faena *</label>
+                                  <label>Teléfono Jefe de Faena *</label>
                                   <div style="display: flex; gap: 8px;">
                                       <select id="codigo_pais_jefe" style="width: 90px; padding: 10px;" required>
                                           <option value="+56" selected>+56 (CL)</option>
@@ -285,7 +285,7 @@
                                           <option value="+57">+57 (CO)</option>
                                       </select>
                                       <input type="tel" id="numero_jefe_faena" name="numero_jefe_faena" inputmode="numeric" style="flex: 1;"
-                                          placeholder="Ej: 912345678" pattern="[0-9]{8,15}" minlength="8" maxlength="15" title="Ingrese entre 8 y 15 dÃ­gitos numÃ©ricos" required>
+                                          placeholder="Ej: 912345678" pattern="[0-9]{8,15}" minlength="8" maxlength="15" title="Ingrese entre 8 y 15 dígitos numéricos" required>
                                   </div>
                             </div>
                         </div>
@@ -293,7 +293,7 @@
                 </div>
             </div>
 
-            <!-- SECCIÃ“N 3: Participantes en IRF -->
+            <!-- SECCIÓN 3: Participantes en IRF -->
             <div class="accordion-card" id="card-step-3">
                 <div class="accordion-header" onclick="toggleAccordion('card-step-3')">
                     <span class="accordion-header-title">
@@ -306,7 +306,7 @@
                         3. Participantes en IRF
                     </span>
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <span id="status-step-3" class="status-badge status-empty">VacÃ­o</span>
+                        <span id="status-step-3" class="status-badge status-empty">Vacío</span>
                         <svg class="accordion-icon" width="16" height="16" fill="none" stroke="currentColor"
                             stroke-width="2.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"></path>
@@ -324,7 +324,7 @@
 
                             </div>
                             <div class="form-group">
-                                <label for="cargo_participante">Cargo / FunciÃ³n</label>
+                                <label for="cargo_participante">Cargo / Función</label>
                                 <input type="text" id="cargo_participante" placeholder="Ingrese cargo o rol...">
                             </div>
                             <div class="form-group full-width" style="margin-top: 4px;">
@@ -354,7 +354,7 @@
                 </div>
             </div>
 
-            <!-- SECCIÃ“N 4: Coordenadas Caso Rescate -->
+            <!-- SECCIÓN 4: Coordenadas Caso Rescate -->
             <div class="accordion-card" id="card-step-4">
                 <div class="accordion-header" onclick="toggleAccordion('card-step-4')">
                     <span class="accordion-header-title">
@@ -369,7 +369,7 @@
                         4. Coordenadas Caso Rescate
                     </span>
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <span id="status-step-4" class="status-badge status-empty">VacÃ­o</span>
+                        <span id="status-step-4" class="status-badge status-empty">Vacío</span>
                         <svg class="accordion-icon" width="16" height="16" fill="none" stroke="currentColor"
                             stroke-width="2.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"></path>
@@ -403,7 +403,7 @@
                 </div>
             </div>
 
-            <!-- SECCIÃ“N 5: Registro de Peligros y Evaluaciones -->
+            <!-- SECCIÓN 5: Registro de Peligros y Evaluaciones -->
             <div class="accordion-card" id="card-step-5">
                 <div class="accordion-header" onclick="toggleAccordion('card-step-5')">
                     <span class="accordion-header-title">
@@ -416,7 +416,7 @@
                         5. Registro de Peligros y Controles
                     </span>
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <span id="status-step-5" class="status-badge status-empty">VacÃ­o</span>
+                        <span id="status-step-5" class="status-badge status-empty">Vacío</span>
                         <svg class="accordion-icon" width="16" height="16" fill="none" stroke="currentColor"
                             stroke-width="2.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"></path>
@@ -440,7 +440,7 @@
                                     viewBox="0 0 24 24" style="margin-right:2px">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6">
                                     </path>
-                                </svg> AÃ±adir Peligro / CondiciÃ³n
+                                </svg> Añadir Peligro / Condición
                             </h4>
 
                             <div class="form-grid">
@@ -449,12 +449,12 @@
                                     <input type="date" id="peligro_fecha">
                                 </div>
                                 <div class="form-group">
-                                    <label for="peligro_localizacion">LocalizaciÃ³n (Fundo / Sector)</label>
+                                    <label for="peligro_localizacion">Localización (Fundo / Sector)</label>
                                     <input type="text" id="peligro_localizacion"
                                         placeholder="Lugar exacto del hallazgo...">
                                 </div>
                                 <div class="form-group full-width">
-                                    <label for="peligro_descripcion">DescripciÃ³n del Peligro</label>
+                                    <label for="peligro_descripcion">Descripción del Peligro</label>
                                     <select id="peligro_descripcion"></select>
                                 </div>
                                 <div class="form-group full-width">
@@ -464,13 +464,13 @@
                                             <input type="checkbox" id="peligro_expuestos_persona" value="Persona"> Persona
                                         </label>
                                         <label style="display: flex; align-items: center; gap: 5px; font-weight: normal; cursor: pointer;">
-                                            <input type="checkbox" id="peligro_expuestos_movil" value="MÃ³vil"> MÃ³vil
+                                            <input type="checkbox" id="peligro_expuestos_movil" value="Móvil"> Móvil
                                         </label>
                                     </div>
                                 </div>
                                 <div class="form-group full-width" style="margin-top: 10px;">
                                     <label style="display:flex; align-items:center; gap:6px; margin-bottom: 8px;">
-                                        Evidencia FotogrÃ¡fica (Opcional)
+                                        Evidencia Fotográfica (Opcional)
                                     </label>
                                     <div class="custom-file-upload">
                                         <button type="button" id="peligro_foto_btn" class="file-btn">
@@ -490,16 +490,16 @@
                             <!-- Initial Risk -->
                             <h5
                                 style="font-size: 12px; font-weight: 700; margin-top: 16px; margin-bottom: 8px; color: var(--text-heading); text-transform: uppercase; border-bottom: 1px dashed var(--border); padding-bottom: 4px;">
-                                EvaluaciÃ³n Inicial
+                                Evaluación Inicial
                             </h5>
                             <div class="form-grid" style="grid-template-columns: repeat(2, 1fr);">
                                 <div class="form-group">
-                                    <label for="peligro_ini_if">Ãndice Frecuencia (IF)</label>
+                                    <label for="peligro_ini_if">Índice Frecuencia (IF)</label>
                                     <input type="number" id="peligro_ini_if" inputmode="numeric" pattern="[1-4]*"
                                         oninput="updateFirssoInicialUI()" min="1" max="4" placeholder="0">
                                 </div>
                                 <div class="form-group">
-                                    <label for="peligro_ini_is">Ãndice Severidad (IS)</label>
+                                    <label for="peligro_ini_is">Índice Severidad (IS)</label>
                                     <input type="number" id="peligro_ini_is" inputmode="numeric" pattern="[1-4]*"
                                         oninput="updateFirssoInicialUI()" min="1" max="4" placeholder="0">
                                 </div>
@@ -513,7 +513,7 @@
                                 </div>
                                 <div
                                     style="grid-column: span 2; font-size: 11px; color: var(--danger, #e74c3c); margin-top: 4px; font-weight: 600;">
-                                    * La sumatoria nunca puede ser 8. El valor mÃ¡ximo permitido es 7 o menor.
+                                    * La sumatoria nunca puede ser 8. El valor máximo permitido es 7 o menor.
                                 </div>
                             </div>
 
@@ -530,11 +530,11 @@
                             <!-- Residual Risk -->
                             <h5
                                 style="font-size: 12px; font-weight: 700; margin-top: 16px; margin-bottom: 8px; color: var(--text-heading); text-transform: uppercase; border-bottom: 1px dashed var(--border); padding-bottom: 4px;">
-                                EvaluaciÃ³n Residual (Remanente)
+                                Evaluación Residual (Remanente)
                             </h5>
                             <div class="form-grid" style="grid-template-columns: repeat(3, 1fr);">
                                 <div class="form-group">
-                                    <label for="peligro_res_ic">Ãndice de Control (IC)</label>
+                                    <label for="peligro_res_ic">Índice de Control (IC)</label>
                                     <input type="number" id="peligro_res_ic" inputmode="numeric" pattern="[0-9]*"
                                         oninput="updateFirssoResidualUI()" min="0" max="10" placeholder="0">
                                 </div>
@@ -578,7 +578,7 @@
                                     </select>
                                 </div>
                                 <div class="form-group">
-                                    <label for="peligro_control_fecha">Fecha LÃ­mite *</label>
+                                    <label for="peligro_control_fecha">Fecha Límite *</label>
                                     <input type="date" id="peligro_control_fecha" required>
                                 </div>
                                 <div class="form-group">
@@ -589,7 +589,7 @@
 
                             <button type="button" class="btn-add-item" onclick="agregarPeligro()"
                                 style="margin-top: 16px;">
-                                âž• Guardar Registro de Peligro
+                                ➕ Guardar Registro de Peligro
                             </button>
 
                         </div>
@@ -611,7 +611,7 @@
                                         <th>IF</th>
                                         <th>IS</th>
                                         <th>FIRSSO</th>
-                                        <th>MitigaciÃ³n</th>
+                                        <th>Mitigación</th>
                                         <th>IC</th>
                                         <th>IF</th>
                                         <th>IS</th>
@@ -620,14 +620,14 @@
                                         <th>Estado</th>
                                         <th>Fecha (impl.)</th>
                                         <th>Firma</th>
-                                        <th style="width: 50px;">AcciÃ³n</th>
+                                        <th style="width: 50px;">Acción</th>
                                     </tr>
                                 </thead>
                                 <tbody id="lista_peligros">
                                     <tr id="empty_peligros_row">
                                         <td colspan="17"
                                             style="text-align: center; color: var(--text-light); font-style: italic; padding: 25px;">
-                                            No se han registrado peligros aÃºn.
+                                            No se han registrado peligros aún.
                                         </td>
                                     </tr>
                                 </tbody>
@@ -639,7 +639,7 @@
                 </div>
             </div>
 
-            <!-- SECCIÃ“N 6: Firmas y Cierre -->
+            <!-- SECCIÓN 6: Firmas y Cierre -->
             <div class="accordion-card" id="card-step-6">
                 <div class="accordion-header" onclick="toggleAccordion('card-step-6')">
                     <span class="accordion-header-title">
@@ -652,7 +652,7 @@
                         6. Firmas y Cierre
                     </span>
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <span id="status-step-6" class="status-badge status-empty">VacÃ­o</span>
+                        <span id="status-step-6" class="status-badge status-empty">Vacío</span>
                         <svg class="accordion-icon" width="16" height="16" fill="none" stroke="currentColor"
                             stroke-width="2.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"></path>
@@ -664,7 +664,7 @@
 
                         <p
                             style="text-align: center; font-weight: 700; color: var(--text-heading); font-size: 14px; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 0.5px;">
-                            VÂ°BÂ° INTERVENCIÃ“N DE FAENAS
+                            V°B° INTERVENCIÓN DE FAENAS
                         </p>
 
                         <div class="signature-grid">
@@ -684,7 +684,7 @@
                                                 <path stroke-linecap="round" stroke-linejoin="round"
                                                     d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
                                                 </path>
-                                            </svg> Firme aquÃ­ con su dedo</span>
+                                            </svg> Firme aquí con su dedo</span>
                                     </div>
                                     <canvas id="firma_jefe_faena" class="sig-canvas"></canvas>
                                 </div>
@@ -702,7 +702,7 @@
 
                             <!-- Pad 1 -->
                             <div class="signature-box-mobile" style="margin-bottom: 16px;">
-                                <div class="signature-label">Asesor PrevenciÃ³n EESS</div>
+                                <div class="signature-label">Asesor Prevención EESS</div>
                                 <div class="signature-canvas-area" id="wrapper-firma-1">
                                     <div class="sig-placeholder">
                                         <span style="display:flex; align-items:center; gap:6px;"><svg width="18"
@@ -711,7 +711,7 @@
                                                 <path stroke-linecap="round" stroke-linejoin="round"
                                                     d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
                                                 </path>
-                                            </svg> Firme aquÃ­ con su dedo</span>
+                                            </svg> Firme aquí con su dedo</span>
                                     </div>
                                     <canvas id="firma_asesor_prev_eess_intervencion" class="sig-canvas"></canvas>
                                 </div>
@@ -730,7 +730,7 @@
 
                             <!-- Pad 2 -->
                             <div class="signature-box-mobile" style="margin-bottom: 16px;">
-                                <div class="signature-label">SupervisiÃ³n EESS</div>
+                                <div class="signature-label">Supervisión EESS</div>
                                 <div class="signature-canvas-area" id="wrapper-firma-2">
                                     <div class="sig-placeholder">
                                         <span style="display:flex; align-items:center; gap:6px;"><svg width="18"
@@ -739,7 +739,7 @@
                                                 <path stroke-linecap="round" stroke-linejoin="round"
                                                     d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
                                                 </path>
-                                            </svg> Firme aquÃ­ con su dedo</span>
+                                            </svg> Firme aquí con su dedo</span>
                                     </div>
                                     <canvas id="firma_supervision_eess_intervencion" class="sig-canvas"></canvas>
                                 </div>
@@ -761,13 +761,13 @@
 
                         <p
                             style="text-align: center; font-weight: 700; color: var(--text-heading); font-size: 14px; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 0.5px;">
-                            VÂ°BÂ° RECEPCIÃ“N / CIERRE
+                            V°B° RECEPCIÓN / CIERRE
                         </p>
 
                         <div class="signature-grid">
                             <!-- Pad 3 -->
                             <div class="signature-box-mobile" style="margin-bottom: 16px;">
-                                <div class="signature-label">Asesor PrevenciÃ³n (RecepciÃ³n)</div>
+                                <div class="signature-label">Asesor Prevención (Recepción)</div>
                                 <div class="signature-canvas-area" id="wrapper-firma-3">
                                     <div class="sig-placeholder">
                                         <span style="display:flex; align-items:center; gap:6px;"><svg width="18"
@@ -776,7 +776,7 @@
                                                 <path stroke-linecap="round" stroke-linejoin="round"
                                                     d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
                                                 </path>
-                                            </svg> Firme aquÃ­ con su dedo</span>
+                                            </svg> Firme aquí con su dedo</span>
                                     </div>
                                     <canvas id="firma_asesor_prev_eess_recepcion" class="sig-canvas"></canvas>
                                 </div>
@@ -795,7 +795,7 @@
 
                             <!-- Pad 4 -->
                             <div class="signature-box-mobile" style="margin-bottom: 16px;">
-                                <div class="signature-label">SupervisiÃ³n (RecepciÃ³n)</div>
+                                <div class="signature-label">Supervisión (Recepción)</div>
                                 <div class="signature-canvas-area" id="wrapper-firma-4">
                                     <div class="sig-placeholder">
                                         <span style="display:flex; align-items:center; gap:6px;"><svg width="18"
@@ -804,7 +804,7 @@
                                                 <path stroke-linecap="round" stroke-linejoin="round"
                                                     d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
                                                 </path>
-                                            </svg> Firme aquÃ­ con su dedo</span>
+                                            </svg> Firme aquí con su dedo</span>
                                     </div>
                                     <canvas id="firma_supervision_eess_recepcion" class="sig-canvas"></canvas>
                                 </div>
@@ -832,21 +832,21 @@
                                 </svg></span>
                             <div>
                                 <strong>NOTA DE RESPONSABILIDAD:</strong> Independiente de la fecha y responsables
-                                asignados, serÃ¡ responsabilidad absoluta de la Empresa de Servicios tomar todas las
+                                asignados, será responsabilidad absoluta de la Empresa de Servicios tomar todas las
                                 medidas necesarias para mantener bajo control las condiciones de riesgo detectadas
-                                durante el perÃ­odo que dure la implementaciÃ³n.
+                                durante el período que dure la implementación.
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Botones de acciÃ³n mÃ³vil para Guardar -->
+            <!-- Botones de acción móvil para Guardar -->
             <div id="mobile-action-buttons"
                 style="display: none; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 25px; margin-bottom: 12px;">
-                <button type="button" onclick="guardarBorrador()" class="btn-action-outline">ðŸ’¾ Guardar
+                <button type="button" onclick="guardarBorrador()" class="btn-action-outline">💾 Guardar
                     Borrador</button>
-                <button type="button" onclick="guardarFinalizado()" class="btn-action-primary">ðŸ“¤ Guardar y
+                <button type="button" onclick="guardarFinalizado()" class="btn-action-primary">📤 Guardar y
                     Completar</button>
             </div>
 
@@ -863,7 +863,7 @@
                     <div class="prev-hero-left">
                         <div class="prev-hero-badge">
                             <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"/></svg>
-                            Panel PrevenciÃ³n
+                            Panel Prevención
                         </div>
                         <h1 class="prev-hero-title">Control de Riesgos</h1>
                         <p class="prev-hero-subtitle">Registros IRF sincronizados desde terreno &bull; Base de Datos PostgreSQL</p>
@@ -879,13 +879,13 @@
                         </button>
                         <button type="button" id="btn-logout-hero" class="prev-btn-logout" onclick="cerrarSesion()" style="display:none;">
                             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9"/></svg>
-                            Cerrar SesiÃ³n
+                            Cerrar Sesión
                         </button>
                     </div>
                 </div>
             </div>
 
-            <!-- MÃ‰TRICAS ANIMADAS -->
+            <!-- MÉTRICAS ANIMADAS -->
             <div class="prev-metrics-grid">
                 <div class="prev-metric-card prev-metric-blue">
                     <div class="prev-metric-icon-wrap blue">
@@ -919,8 +919,8 @@
                         <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                     </div>
                     <div class="prev-metric-info">
-                        <span class="prev-metric-label">Ãšltima SincronizaciÃ³n</span>
-                        <span class="prev-metric-value prev-metric-value-sm" id="prev-metric-lastdate">â€”</span>
+                        <span class="prev-metric-label">Última Sincronización</span>
+                        <span class="prev-metric-value prev-metric-value-sm" id="prev-metric-lastdate">—</span>
                     </div>
                 </div>
             </div>
@@ -931,7 +931,7 @@
                     <div class="prev-filters-grid">
                         <!-- Filtro Fundo -->
                         <div class="prev-filter-item">
-                            <label for="prev-filter-fundo" class="prev-filter-label">Fundo / InstalaciÃ³n</label>
+                            <label for="prev-filter-fundo" class="prev-filter-label">Fundo / Instalación</label>
                             <select id="prev-filter-fundo" class="prev-filter-select" onchange="filtrarTablaPrevencionista()">
                                 <option value="">Todos los fundos</option>
                             </select>
@@ -951,23 +951,23 @@
                             <input type="date" id="prev-filter-fecha" class="prev-filter-input" onchange="filtrarTablaPrevencionista()">
                         </div>
 
-                        <!-- BÃºsqueda General -->
+                        <!-- Búsqueda General -->
                         <div class="prev-filter-item prev-filter-search-item">
-                            <label for="prev-search-input" class="prev-filter-label">BÃºsqueda General</label>
+                            <label for="prev-search-input" class="prev-filter-label">Búsqueda General</label>
                             <div class="prev-search-wrap">
                                 <svg class="prev-search-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
                                 <input type="text" id="prev-search-input" class="prev-search-input" placeholder="Faena, participante..." oninput="filtrarTablaPrevencionista()">
                             </div>
                         </div>
 
-                        <!-- BotÃ³n Limpiar y Contador -->
+                        <!-- Botón Limpiar y Contador -->
                         <div class="prev-filter-actions-item">
                             <button type="button" id="btn-clear-filters" class="prev-btn-clear" onclick="limpiarFiltrosPrevencionista()" style="display:none;">
                                 <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182M21.012 4.658v4.992"/></svg>
                                 Limpiar Filtros
                             </button>
                             <button type="button" class="btn-action-primary" onclick="exportarTablaCSV()" style="padding: 6px 12px; font-size: 12px; margin-left: auto;">
-                                ðŸ“¥ Exportar Excel
+                                📥 Exportar Excel
                             </button>
                             <div class="prev-panel-count" id="prev-panel-count">0 registros</div>
                         </div>
@@ -984,7 +984,7 @@
                     <table class="prev-table">
                         <thead>
                             <tr>
-                                <th>Fundo / InstalaciÃ³n</th>
+                                <th>Fundo / Instalación</th>
                                 <th>Faena</th>
                                 <th>Fecha</th>
                                 <th>Supervisor</th>
@@ -1019,13 +1019,13 @@
         <div class="login-card" style="max-width: 680px; width: 92%;">
             <div class="login-header" style="text-align: left; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 14px;">
                 <div>
-                    <h2 id="history-modal-title" style="font-size: 18px; color: var(--text-heading); margin: 0;">ðŸ“œ Historial de Revisiones</h2>
+                    <h2 id="history-modal-title" style="font-size: 18px; color: var(--text-heading); margin: 0;">📜 Historial de Revisiones</h2>
                     <p id="history-modal-subtitle" style="font-size: 12px; color: var(--text-muted); margin-top: 4px; margin-bottom: 0;">Versiones registradas para este formulario</p>
                 </div>
                 <button type="button" class="btn-close-modal" onclick="cerrarModalHistorial()" style="font-size: 24px; background: none; border: none; cursor: pointer; color: var(--text-muted);">&times;</button>
             </div>
             <div id="history-modal-body" style="padding-top: 16px; max-height: 420px; overflow-y: auto;">
-                <!-- Lista de versiones inyectadas dinÃ¡micamente -->
+                <!-- Lista de versiones inyectadas dinámicamente -->
             </div>
         </div>
     </div>
