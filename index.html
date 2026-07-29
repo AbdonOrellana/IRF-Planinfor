@@ -1030,6 +1030,30 @@
         </div>
     </div>
 
+    <!-- Modal de Confirmación y Diálogos Custom -->
+    <div id="custom-dialog-overlay" class="custom-dialog-overlay" style="display: none;">
+        <div class="custom-dialog-card">
+            <div class="custom-dialog-header">
+                <div id="custom-dialog-icon-wrap" class="custom-dialog-icon-wrap warning">
+                    <svg id="custom-dialog-icon" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
+                    </svg>
+                </div>
+                <div class="custom-dialog-titles">
+                    <h3 id="custom-dialog-title" class="custom-dialog-title">¿Confirmar Acción?</h3>
+                    <p id="custom-dialog-message" class="custom-dialog-message">Mensaje de confirmación...</p>
+                </div>
+            </div>
+            <div id="custom-dialog-input-container" class="custom-dialog-input-wrap" style="display: none;">
+                <input type="text" id="custom-dialog-input" class="custom-dialog-input" placeholder="Ingrese valor...">
+            </div>
+            <div class="custom-dialog-actions">
+                <button type="button" id="custom-dialog-btn-cancel" class="custom-btn-secondary">Cancelar</button>
+                <button type="button" id="custom-dialog-btn-confirm" class="custom-btn-primary">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Animated Toasts Containers -->
     <div id="toast-container" class="toast-container"></div>
 

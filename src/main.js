@@ -6,7 +6,139 @@ import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 
-const updateSW = registerSW({onNeedRefresh() {if (confirm('Nueva actualización disponible. ¿Recargar?')) {updateSW(true);}},onOfflineReady() {console.log('App is ready for offline use!');},});
+/**
+ * Diálogo de confirmación modal personalizado (reemplaza confirm() nativo)
+ */
+function mostrarConfirmacionCustom({
+    title = '¿Confirmar Acción?',
+    message = '¿Está seguro de realizar esta acción?',
+    confirmText = 'Confirmar',
+    cancelText = 'Cancelar',
+    type = 'warning', // 'warning' | 'danger' | 'info' | 'success'
+    confirmClass = ''
+} = {}) {
+    return new Promise((resolve) => {
+        const overlay = document.getElementById('custom-dialog-overlay');
+        const titleEl = document.getElementById('custom-dialog-title');
+        const msgEl = document.getElementById('custom-dialog-message');
+        const iconWrap = document.getElementById('custom-dialog-icon-wrap');
+        const inputWrap = document.getElementById('custom-dialog-input-container');
+        const btnConfirm = document.getElementById('custom-dialog-btn-confirm');
+        const btnCancel = document.getElementById('custom-dialog-btn-cancel');
+
+        if (!overlay) {
+            resolve(confirm(message));
+            return;
+        }
+
+        titleEl.textContent = title;
+        msgEl.textContent = message;
+        inputWrap.style.display = 'none';
+
+        iconWrap.className = `custom-dialog-icon-wrap ${type}`;
+        btnConfirm.className = `custom-btn-primary ${confirmClass || (type === 'danger' ? 'btn-danger' : '')}`;
+        btnConfirm.textContent = confirmText;
+        btnCancel.textContent = cancelText;
+
+        overlay.style.display = 'flex';
+
+        const handleConfirm = () => {
+            cleanup();
+            resolve(true);
+        };
+
+        const handleCancel = () => {
+            cleanup();
+            resolve(false);
+        };
+
+        const cleanup = () => {
+            overlay.style.display = 'none';
+            btnConfirm.removeEventListener('click', handleConfirm);
+            btnCancel.removeEventListener('click', handleCancel);
+        };
+
+        btnConfirm.addEventListener('click', handleConfirm);
+        btnCancel.addEventListener('click', handleCancel);
+    });
+}
+
+/**
+ * Diálogo prompt modal personalizado (reemplaza prompt() nativo)
+ */
+function mostrarPromptCustom({
+    title = 'Configuración',
+    message = 'Ingrese el valor:',
+    defaultValue = '',
+    confirmText = 'Guardar',
+    cancelText = 'Cancelar'
+} = {}) {
+    return new Promise((resolve) => {
+        const overlay = document.getElementById('custom-dialog-overlay');
+        const titleEl = document.getElementById('custom-dialog-title');
+        const msgEl = document.getElementById('custom-dialog-message');
+        const iconWrap = document.getElementById('custom-dialog-icon-wrap');
+        const inputWrap = document.getElementById('custom-dialog-input-container');
+        const inputEl = document.getElementById('custom-dialog-input');
+        const btnConfirm = document.getElementById('custom-dialog-btn-confirm');
+        const btnCancel = document.getElementById('custom-dialog-btn-cancel');
+
+        if (!overlay) {
+            resolve(prompt(message, defaultValue));
+            return;
+        }
+
+        titleEl.textContent = title;
+        msgEl.textContent = message;
+        inputWrap.style.display = 'block';
+        inputEl.value = defaultValue;
+
+        iconWrap.className = 'custom-dialog-icon-wrap info';
+        btnConfirm.className = 'custom-btn-primary';
+        btnConfirm.textContent = confirmText;
+        btnCancel.textContent = cancelText;
+
+        overlay.style.display = 'flex';
+        setTimeout(() => inputEl.focus(), 50);
+
+        const handleConfirm = () => {
+            const val = inputEl.value;
+            cleanup();
+            resolve(val);
+        };
+
+        const handleCancel = () => {
+            cleanup();
+            resolve(null);
+        };
+
+        const cleanup = () => {
+            overlay.style.display = 'none';
+            btnConfirm.removeEventListener('click', handleConfirm);
+            btnCancel.removeEventListener('click', handleCancel);
+        };
+
+        btnConfirm.addEventListener('click', handleConfirm);
+        btnCancel.addEventListener('click', handleCancel);
+    });
+}
+
+window.mostrarConfirmacionCustom = mostrarConfirmacionCustom;
+window.mostrarPromptCustom = mostrarPromptCustom;
+
+const updateSW = registerSW({
+    onNeedRefresh() {
+        mostrarConfirmacionCustom({
+            title: '⚡ Actualización Disponible',
+            message: 'Hay una nueva versión de la aplicación lista para usarse. ¿Deseas recargar para aplicarla?',
+            confirmText: 'Recargar App',
+            type: 'info'
+        }).then(ok => { if (ok) updateSW(true); });
+    },
+    onOfflineReady() {
+        console.log('App is ready for offline use!');
+    },
+});
 
 import { trabajadoresMap, fundosData, fundosMap, peligrosMap } from "./data/appData.js";
 window.trabajadoresMap = trabajadoresMap;
@@ -1973,9 +2105,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        function configurarServidorUrl() {
+        async function configurarServidorUrl() {
             const current = getServerUrl();
-            const val = prompt('Configurar Dirección IP / URL del Servidor API (Producción Planinfor):', current);
+            const val = await mostrarPromptCustom({
+                title: '⚙️ Configuración del Servidor API',
+                message: 'Ingrese la Dirección IP o URL del Servidor API de Sincronización (Producción Planinfor):',
+                defaultValue: current,
+                confirmText: 'Guardar Configuración'
+            });
             if (val !== null && val.trim() !== '') {
                 setServerUrl(val);
                 showToast(`✅ Servidor configurado en: ${getServerUrl()}`, 'success');
@@ -2610,8 +2747,14 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast(`Viendo registro de ${formRecord.fundo_instalacion || 'BD'} (Modo Lectura)`, 'info');
         }
 
-        function borrarFormulario(formId) {
-            if (!confirm('¿Eliminar este formulario guardado? Esta acción no se puede deshacer.')) return;
+        async function borrarFormulario(formId) {
+            const ok = await mostrarConfirmacionCustom({
+                title: '🗑️ ¿Eliminar Borrador?',
+                message: '¿Seguro que deseas eliminar este formulario guardado localmente?\nEsta acción no se puede deshacer.',
+                confirmText: 'Sí, Eliminar Borrador',
+                type: 'danger'
+            });
+            if (!ok) return;
             let list = getSavedFormsList();
             list = list.filter(f => f.id !== formId);
             setSavedFormsList(list);
@@ -2623,8 +2766,14 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast('Formulario eliminado.', 'info');
         }
 
-        function nuevoFormulario() {
-            if (confirm('¿Crear nuevo formulario? Perderá los datos no guardados en pantalla.')) {
+        async function nuevoFormulario() {
+            const ok = await mostrarConfirmacionCustom({
+                title: '📄 ¿Crear Nuevo Formulario?',
+                message: 'Se limpiará el formulario en pantalla. Los datos no guardados actualmente se perderán.',
+                confirmText: 'Sí, Nuevo Formulario',
+                type: 'warning'
+            });
+            if (ok) {
                 document.getElementById('irf-form').reset();
                 if (typeof pad0 !== 'undefined' && pad0) pad0.clear();
                 if (typeof pad1 !== 'undefined' && pad1) pad1.clear();
@@ -2647,8 +2796,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        function cargarFormulario(formId) {
-            if (!confirm('¿Cargar este formulario? Los datos no guardados actuales se perderán.')) return;
+        async function cargarFormulario(formId) {
+            const ok = await mostrarConfirmacionCustom({
+                title: '📥 ¿Cargar Borrador Guardado?',
+                message: 'Los datos que tengas en pantalla actualmente y no hayas guardado se reemplazarán con este borrador.',
+                confirmText: 'Sí, Cargar Borrador',
+                type: 'warning'
+            });
+            if (!ok) return;
             const raw = localStorage.getItem('irf_form_' + formId);
             if (!raw) {
                 showToast('No se encontraron datos del formulario', 'danger');
@@ -2843,7 +2998,14 @@ window.ocultarRegistro = ocultarRegistro;
 window.exportarTablaCSV = exportarTablaCSV;
 
 async function ocultarRegistro(id) {
-    if (!confirm('¿Seguro que deseas ocultar este registro de la vista?\nSeguirá existiendo en la base de datos para respaldo, pero ya no aparecerá aquí ni en los reportes.')) return;
+    const ok = await mostrarConfirmacionCustom({
+        title: '👁️ ¿Ocultar Registro?',
+        message: '¿Seguro que deseas ocultar este registro de la vista?\n\nSeguirá existiendo de forma segura en la base de datos como respaldo, pero ya no aparecerá en la tabla del panel ni en los reportes exportados.',
+        confirmText: 'Sí, Ocultar Registro',
+        cancelText: 'Cancelar',
+        type: 'danger'
+    });
+    if (!ok) return;
     try {
         const res = await tryFetchWithFallback(`/api/forms/${id}`, { method: 'DELETE' });
         if (res.ok) {
