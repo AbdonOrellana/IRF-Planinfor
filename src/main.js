@@ -2939,9 +2939,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         async function guardarFinalizado() {
-            showToast('💾 Guardando formulario y sincronizando...', 'info');
             const formObj = await guardarBorrador();
+            
+            // Check connectivity before attempting sync
+            const isOnline = navigator.onLine;
+            if (!isOnline) {
+                showToast('📱 Guardado localmente. Se sincronizará cuando tengas conexión a Internet.', 'info');
+                return formObj;
+            }
+            
+            showToast('✅ Guardando formulario y sincronizando...', 'info');
             await sincronizarTodos(formObj);
+            return formObj;
         }
 
 // --- Expose to global scope for inline HTML handlers ---

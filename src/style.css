@@ -1361,6 +1361,16 @@ body.prevencionista-mode {
 }
 
 /* HIGH FIDELITY PRINT RENDER */
+@media (min-width: 768px) {
+    .toast-container {
+        left: auto;
+        right: 24px;
+        bottom: 24px;
+        width: 350px;
+        max-width: 90vw;
+    }
+}
+
 @media print {
     @page {
         margin: 0;
