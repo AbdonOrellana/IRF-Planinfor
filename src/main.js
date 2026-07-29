@@ -2150,7 +2150,7 @@ document.addEventListener('DOMContentLoaded', () => {
             for (const baseUrl of uniqueCandidates) {
                 const targetUrl = baseUrl + (endpoint.startsWith('/') ? endpoint : '/' + endpoint);
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 6000);
+                const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 seconds for heavy images
 
                 try {
                     const res = await fetch(targetUrl, {
@@ -2186,6 +2186,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             for (const item of list) {
                 if (directFormObj && directFormObj.id === item.id) continue;
+                if (item.synced) continue; // Skip already synced forms!
+
                 const raw = localStorage.getItem('irf_form_' + item.id);
                 if (raw) {
                     try {
@@ -2921,27 +2923,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            // Update index
-            let list = getSavedFormsList() || [];
-            const existing = list.findIndex(f => f.id === currentActiveFormId);
-            const indexEntry = { id: currentActiveFormId, nombre: nombre, savedAt: formObj.savedAt };
-            if (existing >= 0) {
-                list[existing] = indexEntry;
-            } else {
-                list.push(indexEntry);
-            }
-
-            try {
-                setSavedFormsList(list);
-                renderSavedForms();
-            } catch (e) {
-                console.warn('Error updating saved forms UI:', e);
-            }
-
             if (savedLocally) {
+                // Update index
+                let list = getSavedFormsList() || [];
+                const existing = list.findIndex(f => f.id === currentActiveFormId);
+                const indexEntry = { id: currentActiveFormId, nombre: nombre, savedAt: formObj.savedAt };
+                if (existing >= 0) {
+                    list[existing] = indexEntry;
+                } else {
+                    list.push(indexEntry);
+                }
+
+                try {
+                    setSavedFormsList(list);
+                    renderSavedForms();
+                } catch (e) {
+                    console.warn('Error updating saved forms UI:', e);
+                }
+
                 showToast('✅ Formulario guardado localmente: "' + nombre + '"', 'success');
             } else {
-                showToast('⚠️ Formulario preparado para sincronización.', 'info');
+                showToast('⚠️ Sin espacio. Sincronice o elimine formularios antiguos.', 'warning');
             }
 
             return formObj;
