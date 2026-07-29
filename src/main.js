@@ -2128,7 +2128,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         async function tryFetchWithFallback(endpoint, options = {}) {
-            const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) || !!window.Android;
             const configuredUrl = (getServerUrl() || 'https://services.planinfor.cl:8091').replace(/\/$/, '');
 
             const candidateUrls = [
@@ -2141,7 +2140,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let lastResponse = null;
 
             for (const baseUrl of uniqueCandidates) {
-                const targetUrl = isNative ? (baseUrl + endpoint) : (endpoint.startsWith('/') ? endpoint : '/' + endpoint);
+                const targetUrl = baseUrl + (endpoint.startsWith('/') ? endpoint : '/' + endpoint);
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 6000);
 
