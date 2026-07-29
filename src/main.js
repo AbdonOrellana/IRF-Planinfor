@@ -831,6 +831,29 @@ function initFundoAutocomplete() {
         // ==========================================
         // DYNAMIC PARTICIPANTS CONTROLLER
         // ==========================================
+
+        function autoAddJefeFaena() {
+            const input = document.getElementById('jefe_faena');
+            if (!input || !input.value.trim()) return;
+            
+            const nombre = input.value.trim();
+            let cargo = 'Jefe de Faena';
+            if (window.trabajadoresMap && window.trabajadoresMap[nombre]) {
+                cargo = window.trabajadoresMap[nombre];
+            }
+            
+            const exists = participantesList.some(p => p.nombre === nombre);
+            if (!exists) {
+                const maxParticipantes = parseInt(document.getElementById('num_trabajadores').value) || 0;
+                if (maxParticipantes > 0 && participantesList.length >= maxParticipantes) {
+                    return; // Límite alcanzado, no se auto-agrega
+                }
+                participantesList.push({ nombre, cargo });
+                if (typeof actualizarTablaParticipantes === 'function') actualizarTablaParticipantes();
+            }
+        }
+        window.autoAddJefeFaena = autoAddJefeFaena;
+
         function agregarUsuario() {
             const nombreInput = document.getElementById('nombre_participante');
             const cargoInput = document.getElementById('cargo_participante');
@@ -845,6 +868,12 @@ function initFundoAutocomplete() {
             if (!cargoValue) {
                 showToast('Por favor ingrese el cargo o rol.', 'warning');
                 cargoInput.focus();
+                return;
+            }
+
+            const maxParticipantes = parseInt(document.getElementById('num_trabajadores').value) || 0;
+            if (maxParticipantes > 0 && participantesList.length >= maxParticipantes) {
+                showToast(`No puedes agregar más de ${maxParticipantes} participantes (Límite definido en 'Nº Trabajadores').`, 'warning');
                 return;
             }
 
