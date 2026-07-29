@@ -993,7 +993,8 @@ function initFundoAutocomplete() {
             const fechaInput = document.getElementById('peligro_fecha');
             const descInput = document.getElementById('peligro_descripcion');
             const locInput = document.getElementById('peligro_localizacion');
-            const expInput = document.getElementById('peligro_expuestos');
+            const personaChk = document.getElementById('peligro_expuestos_persona');
+            const movilChk = document.getElementById('peligro_expuestos_movil');
             const iniIfInput = document.getElementById('peligro_ini_if');
             const iniIsInput = document.getElementById('peligro_ini_is');
             const iniFirssoInput = document.getElementById('peligro_ini_firsso');
@@ -1036,12 +1037,17 @@ function initFundoAutocomplete() {
                 return;
             }
 
+            let expuestosArr = [];
+            if (personaChk && personaChk.checked) expuestosArr.push("Persona");
+            if (movilChk && movilChk.checked) expuestosArr.push("Móvil");
+            const expuestosVal = expuestosArr.join(" y ");
+
             const processSave = (fotoBase64) => {
                 const nuevo = {
                     fecha: fechaInput.value,
                     descripcion: descValue,
                     localizacion: locValue,
-                    expuestos: expInput.value.trim(),
+                    expuestos: expuestosVal,
                     ini_if: parseInt(iniIfInput.value) || 0,
                     ini_is: parseInt(iniIsInput.value) || 0,
                     ini_firsso: parseInt(iniFirssoInput.value) || 0,
@@ -1063,7 +1069,8 @@ function initFundoAutocomplete() {
                 fechaInput.value = '';
                 descInput.value = '';
                 locInput.value = '';
-                expInput.value = '';
+                if (personaChk) personaChk.checked = false;
+                if (movilChk) movilChk.checked = false;
                 iniIfInput.value = '';
                 iniIsInput.value = '';
                 iniFirssoInput.value = '0';
