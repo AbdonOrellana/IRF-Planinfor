@@ -27,4 +27,7 @@ dist-ssr
 .env
 .env.local
 server/db.json
+server/usuarios.json
+server/fotos_json/
+respaldos/
 

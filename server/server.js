@@ -1,12 +1,12 @@
+import './env.js';
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { initDb, saveFormRecord, getAllFormRecords, getFormRecordById, deleteFormRecord } from './db.js';
-
-dotenv.config();
+import { initDb, saveFormRecord, getAllFormRecords, getFormRecordById, deleteFormRecord, findUser, saveUser, guardarFoto, fotosFaltantes, getFundosVisitados } from './db.js';
+import { hashFoto, esHashValido, MAX_FOTO_CHARS } from './fotos.js';
+import { hashPassword, verifyPassword, signToken, requireAuth } from './auth.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -31,20 +31,69 @@ app.get('/api/health', (req, res) => {
 });
 
 // Auth Login Prevencionista
-app.post('/api/login', (req, res) => {
-    const { username, password } = req.body || {};
-    const validUser = process.env.ADMIN_USER || 'prevencionista';
-    const validPass = process.env.ADMIN_PASS || 'admin';
+// Hash de relleno: si el usuario no existe se verifica igual, para no revelar qué usuarios existen por el tiempo de respuesta
+const DUMMY_HASH = hashPassword('usuario-inexistente');
 
-    if (username === validUser && password === validPass) {
-        return res.json({
-            success: true,
-            token: 'token_irf_' + Date.now(),
-            user: { username: validUser, role: 'prevencionista' }
-        });
+app.post('/api/login', async (req, res) => {
+    try {
+        const username = String(req.body?.username || '').trim();
+        const password = String(req.body?.password || '');
+        const user = username ? await findUser(username) : null;
+        const valid = verifyPassword(password, user ? user.password_hash : DUMMY_HASH);
+
+        if (user && valid) {
+            return res.json({
+                success: true,
+                token: signToken(user),
+                user: { username: user.username, role: user.rol }
+            });
+        }
+        return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
+    } catch (err) {
+        console.error('Error en login:', err);
+        res.status(500).json({ error: 'Error al validar el usuario' });
     }
+});
 
-    return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
+// Fotos: la app las sube una por una antes del formulario, así una señal débil no obliga a reenviar todo.
+// Pregunta cuáles de estas fotos (por hash SHA-256) no tiene aún el servidor
+app.post('/api/fotos/faltantes', async (req, res) => {
+    try {
+        const hashes = Array.isArray(req.body?.hashes) ? req.body.hashes.filter(esHashValido).slice(0, 500) : [];
+        res.json({ faltantes: await fotosFaltantes(hashes) });
+    } catch (err) {
+        console.error('Error consultando fotos:', err);
+        res.status(500).json({ error: 'Error consultando fotos' });
+    }
+});
+
+// Sube una foto (data URL). El servidor calcula el hash; si coincide con el esperado se confirma.
+app.post('/api/fotos', async (req, res) => {
+    try {
+        const data = req.body?.data;
+        if (typeof data !== 'string' || !data.startsWith('data:image/') || data.length > MAX_FOTO_CHARS) {
+            return res.status(400).json({ error: 'Foto inválida' });
+        }
+        const hash = hashFoto(data);
+        if (req.body.hash && req.body.hash !== hash) {
+            return res.status(400).json({ error: 'La foto llegó incompleta o dañada', hash });
+        }
+        await guardarFoto(hash, data);
+        res.json({ success: true, hash });
+    } catch (err) {
+        console.error('Error guardando foto:', err);
+        res.status(500).json({ error: 'Error guardando la foto' });
+    }
+});
+
+// Fundos visitados por todos los equipos (sin fotos, firmas ni nombres) para precargar IRF en terreno
+app.get('/api/fundos-visitados', async (req, res) => {
+    try {
+        res.json({ fundos: await getFundosVisitados() });
+    } catch (err) {
+        console.error('Error obteniendo fundos visitados:', err);
+        res.status(500).json({ error: 'Error obteniendo fundos visitados' });
+    }
 });
 
 // Sincronizar un formulario individual
@@ -55,8 +104,12 @@ app.post('/api/sync', async (req, res) => {
             return res.status(400).json({ error: 'Formulario inválido o sin ID' });
         }
         const saved = await saveFormRecord(formData);
-        res.json({ success: true, message: 'Formulario sincronizado con éxito', data: saved });
+        // Respuesta mínima: el equipo en terreno no necesita de vuelta el formulario completo
+        res.json({ success: true, message: 'Formulario sincronizado con éxito', id: saved.id, version: saved.version });
     } catch (err) {
+        if (err.code === 'FOTOS_FALTANTES') {
+            return res.status(409).json({ error: 'Faltan fotos del formulario en el servidor', faltantes: err.faltantes });
+        }
         console.error('Error sincronizando formulario:', err);
         res.status(500).json({ error: 'Error al sincronizar formulario en la base de datos', details: err.message });
     }
@@ -86,7 +139,7 @@ app.post('/api/sync-batch', async (req, res) => {
 });
 
 // Obtener todos los formularios sincronizados (Vista Prevencionista)
-app.get('/api/forms', async (req, res) => {
+app.get('/api/forms', requireAuth, async (req, res) => {
     try {
         const records = await getAllFormRecords();
         res.json({ success: true, count: records.length, forms: records });
@@ -97,7 +150,7 @@ app.get('/api/forms', async (req, res) => {
 });
 
 // Obtener un formulario específico por ID
-app.get('/api/forms/:id', async (req, res) => {
+app.get('/api/forms/:id', requireAuth, async (req, res) => {
     try {
         const record = await getFormRecordById(req.params.id);
         if (!record) {
@@ -111,7 +164,7 @@ app.get('/api/forms/:id', async (req, res) => {
 });
 
 // Eliminar un formulario sincronizado
-app.delete('/api/forms/:id', async (req, res) => {
+app.delete('/api/forms/:id', requireAuth, async (req, res) => {
     try {
         await deleteFormRecord(req.params.id);
         res.json({ success: true, message: 'Formulario eliminado de la base de datos' });
@@ -131,9 +184,26 @@ app.use((req, res) => {
     }
 });
 
+// Crea los usuarios definidos en .env (ADMIN_USER/ADMIN_PASS y TEST_USER/TEST_PASS) si aún no existen.
+// Para cambiar contraseñas o agregar usuarios usar: npm run usuarios
+async function crearUsuariosIniciales() {
+    const iniciales = [
+        [process.env.ADMIN_USER, process.env.ADMIN_PASS],
+        [process.env.TEST_USER, process.env.TEST_PASS]
+    ];
+    for (const [username, password] of iniciales) {
+        if (!username || !password) continue;
+        if (!(await findUser(username))) {
+            await saveUser(username, hashPassword(password));
+            console.log(`👤 Usuario "${username}" creado desde .env`);
+        }
+    }
+}
+
 // Inicializar DB y arrancar servidor
 async function startServer() {
     await initDb();
+    await crearUsuariosIniciales();
     app.listen(PORT, '0.0.0.0', () => {
         console.log(`🚀 Servidor IRF Sync API corriendo en http://0.0.0.0:${PORT}`);
     });

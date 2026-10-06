@@ -2225,6 +2225,62 @@ body.prevencionista-mode {
     height: 42px;
 }
 
+/* Filtros con lista desplegable en los que también se puede escribir */
+.prev-combo {
+    position: relative;
+}
+
+.prev-combo .prev-filter-input {
+    padding-right: 36px;
+}
+
+.prev-combo-toggle {
+    position: absolute;
+    top: 50%;
+    right: 6px;
+    transform: translateY(-50%);
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.prev-combo-toggle:hover,
+.prev-combo-toggle.abierto {
+    color: var(--primary);
+}
+
+.prev-combo-toggle.abierto svg {
+    transform: rotate(180deg);
+}
+
+.prev-combo-list .autocomplete-item {
+    padding: 9px 14px;
+    font-size: 13px;
+}
+
+.prev-combo-list .autocomplete-item.activo,
+.prev-combo-list .autocomplete-item.seleccionado {
+    background-color: var(--primary-light);
+    color: var(--primary);
+}
+
+.prev-combo-list .autocomplete-item.todos,
+.prev-combo-list .autocomplete-item.sin-resultados {
+    color: var(--text-muted);
+}
+
+.prev-combo-list .autocomplete-item.sin-resultados {
+    cursor: default;
+    font-style: italic;
+}
+
 .prev-filter-select:focus,
 .prev-filter-input:focus {
     border-color: var(--primary);
@@ -2754,6 +2810,7 @@ body.prevencionista-mode {
 
 .custom-dialog-message {
     margin: 0;
+    white-space: pre-line;
     font-size: 13.5px;
     line-height: 1.5;
     color: var(--text-muted, #64748b);

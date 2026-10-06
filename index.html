@@ -77,6 +77,7 @@
                 </button>
             </div>
         </header>
+        <div id="aviso-servidor-pruebas" style="display:none; margin:-8px 0 16px; padding:8px 12px; border-radius:var(--radius-sm); background:#facc15; color:#422006; font-size:12px; font-weight:700; text-align:center;"></div>
 
         <!-- Navegación por Pestañas Principales (Oculta para evitar cambiar de vista) -->
         <nav class="main-tabs" style="display: none;">
@@ -118,8 +119,20 @@
                         <button type="button" id="btn-sync-all" class="btn-action-primary" onclick="sincronizarTodos()"
                             style="padding: 9px 12px; font-size:12px; flex: 1.5;">🔄 Sincronizar</button>
                     </div>
+                    <div style="display:flex; gap: 8px; margin-bottom: 12px;">
+                        <button type="button" class="btn-action-outline" onclick="exportarRespaldo()"
+                            style="padding: 8px 12px; font-size:12px; flex: 1;">💾 Respaldar pendientes</button>
+                        <button type="button" class="btn-action-outline" onclick="abrirRestaurarRespaldo()"
+                            style="padding: 8px 12px; font-size:12px; flex: 1;">📂 Restaurar respaldo</button>
+                        <input type="file" id="input-restaurar-respaldo" accept=".json,application/json" style="display:none;"
+                            onchange="restaurarRespaldo(this)">
+                    </div>
                     <div id="saved-forms-list" class="dashboard-container">
                         <!-- Formularios renderizados dinámicamente aquí -->
+                    </div>
+                    <div style="font-size:12px; font-weight:800; color:var(--primary); text-transform:uppercase; margin:16px 0 8px;">📍 Fundos visitados</div>
+                    <div id="fundos-visitados-list" class="dashboard-container">
+                        <!-- Fundos visitados renderizados dinámicamente aquí -->
                     </div>
                 </div>
             </div>
@@ -934,17 +947,22 @@
                         <!-- Filtro Fundo -->
                         <div class="prev-filter-item">
                             <label for="prev-filter-fundo" class="prev-filter-label">Fundo / Instalación</label>
-                            <select id="prev-filter-fundo" class="prev-filter-select" onchange="filtrarTablaPrevencionista()">
-                                <option value="">Todos los fundos</option>
-                            </select>
+                            <input type="text" id="prev-filter-fundo" class="prev-filter-input" autocomplete="off"
+                                placeholder="Todos los fundos">
                         </div>
 
                         <!-- Filtro Supervisor -->
                         <div class="prev-filter-item">
                             <label for="prev-filter-supervisor" class="prev-filter-label">Supervisor</label>
-                            <select id="prev-filter-supervisor" class="prev-filter-select" onchange="filtrarTablaPrevencionista()">
-                                <option value="">Todos los supervisores</option>
-                            </select>
+                            <input type="text" id="prev-filter-supervisor" class="prev-filter-input" autocomplete="off"
+                                placeholder="Todos los supervisores">
+                        </div>
+
+                        <!-- Filtro Jefe de Faena -->
+                        <div class="prev-filter-item">
+                            <label for="prev-filter-jefe" class="prev-filter-label">Jefe de Faena</label>
+                            <input type="text" id="prev-filter-jefe" class="prev-filter-input" autocomplete="off"
+                                placeholder="Todos los jefes de faena">
                         </div>
 
                         <!-- Filtro Fecha -->
@@ -989,7 +1007,7 @@
                                 <th>Fundo / Instalación</th>
                                 <th>Faena</th>
                                 <th>Fecha</th>
-                                <th>Supervisor</th>
+                                <th>Jefe de Faena / Supervisor</th>
                                 <th class="center">Participantes</th>
                                 <th class="center">Peligros</th>
                                 <th>Sincronizado</th>

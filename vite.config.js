@@ -1,7 +1,11 @@
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
-export default defineConfig({
+// En desarrollo, /api va al backend local (puerto 3000). Con `npm run dev:prod` va al servidor de producción,
+// para revisar la web nueva con los datos reales (¡cuidado: borrar u ocultar registros afecta producción!).
+const API_PRODUCCION = 'https://services.planinfor.cl:8091';
+
+export default defineConfig(({ mode }) => ({
   plugins: [
     VitePWA({
       registerType: 'autoUpdate',
@@ -29,9 +33,9 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: mode === 'produccion' ? API_PRODUCCION : 'http://localhost:3000',
         changeOrigin: true
       }
     }
   }
-});
+}));

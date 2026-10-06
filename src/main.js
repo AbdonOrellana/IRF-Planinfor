@@ -1,127 +1,21 @@
 import { registerSW } from 'virtual:pwa-register';
-import './offlineLogic.js';
 import { Geolocation } from '@capacitor/geolocation';
 import { Printer } from '@capgo/capacitor-printer';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
-
-/**
- * Diálogo de confirmación modal personalizado (reemplaza confirm() nativo)
- */
-function mostrarConfirmacionCustom({
-    title = '¿Confirmar Acción?',
-    message = '¿Está seguro de realizar esta acción?',
-    confirmText = 'Confirmar',
-    cancelText = 'Cancelar',
-    type = 'warning', // 'warning' | 'danger' | 'info' | 'success'
-    confirmClass = ''
-} = {}) {
-    return new Promise((resolve) => {
-        const overlay = document.getElementById('custom-dialog-overlay');
-        const titleEl = document.getElementById('custom-dialog-title');
-        const msgEl = document.getElementById('custom-dialog-message');
-        const iconWrap = document.getElementById('custom-dialog-icon-wrap');
-        const inputWrap = document.getElementById('custom-dialog-input-container');
-        const btnConfirm = document.getElementById('custom-dialog-btn-confirm');
-        const btnCancel = document.getElementById('custom-dialog-btn-cancel');
-
-        if (!overlay) {
-            resolve(confirm(message));
-            return;
-        }
-
-        titleEl.textContent = title;
-        msgEl.textContent = message;
-        inputWrap.style.display = 'none';
-
-        iconWrap.className = `custom-dialog-icon-wrap ${type}`;
-        btnConfirm.className = `custom-btn-primary ${confirmClass || (type === 'danger' ? 'btn-danger' : '')}`;
-        btnConfirm.textContent = confirmText;
-        btnCancel.textContent = cancelText;
-
-        overlay.style.display = 'flex';
-
-        const handleConfirm = () => {
-            cleanup();
-            resolve(true);
-        };
-
-        const handleCancel = () => {
-            cleanup();
-            resolve(false);
-        };
-
-        const cleanup = () => {
-            overlay.style.display = 'none';
-            btnConfirm.removeEventListener('click', handleConfirm);
-            btnCancel.removeEventListener('click', handleCancel);
-        };
-
-        btnConfirm.addEventListener('click', handleConfirm);
-        btnCancel.addEventListener('click', handleCancel);
-    });
-}
-
-/**
- * Diálogo prompt modal personalizado (reemplaza prompt() nativo)
- */
-function mostrarPromptCustom({
-    title = 'Configuración',
-    message = 'Ingrese el valor:',
-    defaultValue = '',
-    confirmText = 'Guardar',
-    cancelText = 'Cancelar'
-} = {}) {
-    return new Promise((resolve) => {
-        const overlay = document.getElementById('custom-dialog-overlay');
-        const titleEl = document.getElementById('custom-dialog-title');
-        const msgEl = document.getElementById('custom-dialog-message');
-        const iconWrap = document.getElementById('custom-dialog-icon-wrap');
-        const inputWrap = document.getElementById('custom-dialog-input-container');
-        const inputEl = document.getElementById('custom-dialog-input');
-        const btnConfirm = document.getElementById('custom-dialog-btn-confirm');
-        const btnCancel = document.getElementById('custom-dialog-btn-cancel');
-
-        if (!overlay) {
-            resolve(prompt(message, defaultValue));
-            return;
-        }
-
-        titleEl.textContent = title;
-        msgEl.textContent = message;
-        inputWrap.style.display = 'block';
-        inputEl.value = defaultValue;
-
-        iconWrap.className = 'custom-dialog-icon-wrap info';
-        btnConfirm.className = 'custom-btn-primary';
-        btnConfirm.textContent = confirmText;
-        btnCancel.textContent = cancelText;
-
-        overlay.style.display = 'flex';
-        setTimeout(() => inputEl.focus(), 50);
-
-        const handleConfirm = () => {
-            const val = inputEl.value;
-            cleanup();
-            resolve(val);
-        };
-
-        const handleCancel = () => {
-            cleanup();
-            resolve(null);
-        };
-
-        const cleanup = () => {
-            overlay.style.display = 'none';
-            btnConfirm.removeEventListener('click', handleConfirm);
-            btnCancel.removeEventListener('click', handleCancel);
-        };
-
-        btnConfirm.addEventListener('click', handleConfirm);
-        btnCancel.addEventListener('click', handleCancel);
-    });
-}
+import { mostrarConfirmacionCustom, mostrarPromptCustom } from './dialogs.js';
+import { escapeHTML, showToast } from './utils.js';
+import { getForm, putForm, removeForm, getDraft, putDraft } from './formStore.js';
+import { getSavedFormsList, setSavedFormsList, getFormulariosPendientes } from './bandeja.js';
+import { getServerUrl, setServerUrl, tryFetchWithFallback, esServidorProduccion, SERVIDOR_PRODUCCION } from './api.js';
+import {
+    sincronizarTodos, iniciarSincronizacionAutomatica, exportarRespaldo, abrirRestaurarRespaldo, restaurarRespaldo
+} from './sync.js';
+import {
+    normalizarFundo, getFundosVisitados, setFundosVisitados, getFundoVisitado, peligrosReutilizables,
+    registrarFundoVisitado, migrarFundosVisitados, descargarFundosCompartidos
+} from './fundosVisitados.js';
 
 window.mostrarConfirmacionCustom = mostrarConfirmacionCustom;
 window.mostrarPromptCustom = mostrarPromptCustom;
@@ -146,16 +40,6 @@ window.fundosData = fundosData;
 window.fundosMap = fundosMap;
 window.peligrosMap = peligrosMap;
 
-function escapeHTML(str) {
-    if (!str) return '';
-    return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-}
-
 function autoFillCargo() {
             const inputNombre = document.getElementById('nombre_participante');
             const inputCargo = document.getElementById('cargo_participante');
@@ -167,7 +51,6 @@ function autoFillCargo() {
 function initFundoAutocomplete() {
             const input = document.getElementById('fundo_instalacion');
             if (!input || typeof fundosMap === 'undefined') return;
-            const data = Object.keys(fundosMap);
 
             input.classList.add('autocomplete-input');
             input.setAttribute('autocomplete', 'off');
@@ -193,6 +76,10 @@ function initFundoAutocomplete() {
                     return;
                 }
 
+                // Fundos ya visitados primero, luego el catálogo
+                const visitados = Object.values(getFundosVisitados()).map(f => f.fundo);
+                const visitadosKeys = new Set(visitados.map(normalizarFundo));
+                const data = [...visitados, ...Object.keys(fundosMap).filter(k => !visitadosKeys.has(normalizarFundo(k)))];
                 let matches = data.filter(item => item.toLowerCase().includes(val.toLowerCase()));
                 matches = matches.slice(0, 50);
 
@@ -202,15 +89,19 @@ function initFundoAutocomplete() {
                         let itemDiv = document.createElement('div');
                         itemDiv.classList.add('autocomplete-item');
 
-                        const regex = new RegExp(`(${val})`, "gi");
-                        const highlighted = match.replace(regex, "<strong>$1</strong>");
+                        const safeVal = escapeHTML(val).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                        const regex = new RegExp(`(${safeVal})`, "gi");
+                        const highlighted = escapeHTML(match).replace(regex, "<strong>$1</strong>");
 
-                        itemDiv.innerHTML = highlighted;
+                        itemDiv.innerHTML = (visitadosKeys.has(normalizarFundo(match)) ? '📍 ' : '') + highlighted;
 
-                        let areaSpan = document.createElement('span');
-                        areaSpan.classList.add('autocomplete-item-cargo');
-                        areaSpan.innerText = " - " + fundosMap[match];
-                        itemDiv.appendChild(areaSpan);
+                        const area = fundosMap[match] || (getFundoVisitado(match) || {}).area;
+                        if (area) {
+                            let areaSpan = document.createElement('span');
+                            areaSpan.classList.add('autocomplete-item-cargo');
+                            areaSpan.innerText = " - " + area;
+                            itemDiv.appendChild(areaSpan);
+                        }
 
                         itemDiv.addEventListener('mousedown', function (e) {
                             e.preventDefault();
@@ -239,8 +130,13 @@ function initFundoAutocomplete() {
                 const areaInput = document.getElementById('area_relacionamiento');
                 if (areaInput && fundosMap[this.value]) {
                     areaInput.value = fundosMap[this.value];
+                } else if (areaInput && !areaInput.value) {
+                    const visitado = getFundoVisitado(this.value);
+                    if (visitado && visitado.area) areaInput.value = visitado.area;
                 }
+                mostrarAvisoFundoVisitado();
             });
+            input.addEventListener('blur', mostrarAvisoFundoVisitado);
         }
 
         function initPeligroSelect() {
@@ -816,38 +712,6 @@ function initFundoAutocomplete() {
                 document.documentElement.setAttribute('data-theme', 'light');
             }
         })();
-
-        // Mobile Animated Toast Alerts
-        function showToast(message, type = 'info') {
-            const container = document.getElementById('toast-container');
-            
-            // Limit to 2 visible toasts maximum to prevent screen clutter
-            while (container.children.length >= 2) {
-                container.removeChild(container.firstChild);
-            }
-            
-            const toast = document.createElement('div');
-            toast.className = `toast ${type}`;
-
-            let icon = '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
-            if (type === 'success') icon = '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
-            if (type === 'warning') icon = '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>';
-            if (type === 'danger') icon = '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
-
-            toast.innerHTML = `
-                <span style="font-size: 15px;">${icon}</span>
-                <div>${message}</div>
-            `;
-
-            container.appendChild(toast);
-
-            setTimeout(() => {
-                toast.style.animation = 'slideInMobile 0.3s reverse forwards';
-                setTimeout(() => {
-                    if (container.contains(toast)) toast.remove();
-                }, 300);
-            }, 2500);
-        }
 
         // Satellital Coordinates GPS auto-capture API (Web + Capacitor compatible)
         async function getCurrentLocation() {
@@ -1765,7 +1629,15 @@ function initFundoAutocomplete() {
 
 
 // Auto-Save Feature
+        let saveDraftTimer = null;
+
+        // Se llama en cada tecla/clic: agrupa los cambios y escribe a lo más cada 500 ms
         function saveDraft() {
+            clearTimeout(saveDraftTimer);
+            saveDraftTimer = setTimeout(guardarAutosave, 500);
+        }
+
+        function guardarAutosave() {
             const draft = {
                 inputs: {},
                 participantes: typeof participantesList !== 'undefined' ? participantesList : [],
@@ -1778,15 +1650,13 @@ function initFundoAutocomplete() {
                 }
             });
 
-            localStorage.setItem('irf_autosave', JSON.stringify(draft));
+            putDraft(draft).catch(e => console.warn('No se pudo guardar el autoguardado:', e));
         }
 
-        function loadDraft() {
-            const saved = localStorage.getItem('irf_autosave');
-            if (!saved) return;
-
+        async function loadDraft() {
             try {
-                const draft = JSON.parse(saved);
+                const draft = await getDraft();
+                if (!draft) return;
 
                 // Restore standard inputs
                 for (const [id, value] of Object.entries(draft.inputs)) {
@@ -1823,8 +1693,9 @@ function initFundoAutocomplete() {
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            setTimeout(() => {
-                loadDraft();
+            setTimeout(async () => {
+                // Recuperar antes de registrar el autoguardado, para no pisar el borrador con un formulario vacío
+                await loadDraft();
 
                 const fotoBtn = document.getElementById('peligro_foto_btn');
                 if (fotoBtn) {
@@ -1832,7 +1703,10 @@ function initFundoAutocomplete() {
                         e.preventDefault();
                         try {
                             const image = await Camera.getPhoto({
-                                quality: 70,
+                                quality: 60,
+                                width: 1280,
+                                height: 1280,
+                                correctOrientation: true,
                                 allowEditing: false,
                                 resultType: CameraResultType.DataUrl,
                                 source: CameraSource.Camera
@@ -1877,70 +1751,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
         });
-        // Toggles expansion/collapse of Accordion cards
-        function DUP_toggleAccordion(cardId) {
-            const card = document.getElementById(cardId);
-            if (!card) return;
-            const isActive = card.classList.contains('active');
-
-            // Toggle clicked card
-            if (isActive) {
-                card.classList.remove('active');
-            } else {
-                card.classList.add('active');
-
-                // Wait for expand visual, then trigger signature resizing safely
-                setTimeout(() => {
-                    if (cardId === 'card-step-6') {
-                        if (typeof pad1 !== 'undefined' && pad1) pad1.resize();
-                        if (typeof pad2 !== 'undefined' && pad2) pad2.resize();
-                        if (typeof pad3 !== 'undefined' && pad3) pad3.resize();
-                        if (typeof pad4 !== 'undefined' && pad4) pad4.resize();
-                    }
-                }, 300);
-            }
-        }
-
-        // Slide emergency numbers modal toggler
-        function DUP_toggleSosModal() {
-            const modal = document.getElementById('sos-modal');
-            const overlay = document.getElementById('sos-overlay');
-            if (!modal || !overlay) return;
-            const isClosed = !modal.classList.contains('open');
-
-            if (isClosed) {
-                modal.classList.add('open');
-                overlay.classList.add('open');
-            } else {
-                modal.classList.remove('open');
-                overlay.classList.remove('open');
-            }
-        }
-
         // =========================================================================
         // NATIVE ANDROID BRIDGE & OFFLINE SYSTEM INTEGRATION
         // =========================================================================
         let currentActiveFormId = null;
-        // Detecta si la app corre dentro del contenedor Android Nativo
-        const isAndroidApp = typeof window.Android !== 'undefined';
-
-        function checkConnectionStatus() {
-            if (!isAndroidApp) return;
-            // Provide fallback if Android object doesn't have checkNetworkStatus
-            const online = window.Android && window.Android.checkNetworkStatus ? window.Android.checkNetworkStatus() : navigator.onLine;
-            const badge = document.getElementById('sync-connection-badge');
-            const syncBtn = document.getElementById('btn-sync-all');
-
-            if (online) {
-                badge.className = "status-badge status-complete";
-                badge.innerText = "🟢 Conectado";
-                syncBtn.style.display = "block";
-            } else {
-                badge.className = "status-badge status-incomplete";
-                badge.innerText = "🔴 Offline";
-                syncBtn.style.display = "none";
-            }
-        }
 
         function verificarAccesoPlataforma() {
             const isCapacitorNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
@@ -2001,32 +1815,43 @@ document.addEventListener('DOMContentLoaded', () => {
                 switchMainTab('prevencionista');
             }
 
+            const mostrarError = (texto) => {
+                if (errorMsg) {
+                    errorMsg.textContent = texto;
+                    errorMsg.style.display = 'block';
+                }
+            };
+
+            if (!username || !password) {
+                mostrarError('❌ Ingrese usuario y contraseña.');
+                return;
+            }
+
+            // El acceso lo valida siempre el servidor: sin conexión no se puede iniciar sesión
             try {
-                const res = await fetch('/api/login', {
+                const res = await tryFetchWithFallback('/api/login', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, password })
                 });
-                const json = await res.json();
-                if (json.success && json.token) {
+                const json = await res.json().catch(() => ({}));
+                if (res.ok && json.success && json.token) {
                     sessionStorage.setItem('irf_auth_token', json.token);
+                    if (passwordInput) passwordInput.value = '';
                     showLoggedInUI();
                     return;
                 }
+                mostrarError(res.status === 401 ? '❌ Usuario o contraseña incorrectos.' : '❌ ' + (json.error || 'Error del servidor al iniciar sesión.'));
             } catch (err) {
-                console.warn('API login fallback check:', err);
+                console.warn('Error de conexión en login:', err);
+                mostrarError('❌ No se pudo conectar con el servidor. Revise su conexión e intente nuevamente.');
             }
+        }
 
-            // Fallback validation if server offline or custom creds
-            if ((username === 'prevencionista' || username === 'admin') && (password === 'admin' || password === 'mingeo2026')) {
-                sessionStorage.setItem('irf_auth_token', 'token_local_' + Date.now());
-                showLoggedInUI();
-            } else {
-                if (errorMsg) {
-                    errorMsg.textContent = '❌ Usuario o contraseña incorrectos. (Prueba: prevencionista / admin)';
-                    errorMsg.style.display = 'block';
-                }
-            }
+        // El servidor rechazó el token (expirado o inválido): volver a pedir login
+        function sesionExpirada() {
+            if (!sessionStorage.getItem('irf_auth_token')) return;
+            cerrarSesion();
+            showToast('🔒 Su sesión expiró. Inicie sesión nuevamente.', 'warning');
         }
 
         function cerrarSesion() {
@@ -2050,27 +1875,65 @@ document.addEventListener('DOMContentLoaded', () => {
 
             currentActiveFormId = 'irf_' + Date.now();
             renderSavedForms();
+            migrarFundosVisitados()
+                .then(renderFundosVisitados)
+                .then(descargarFundosCompartidos)
+                .then(cambios => { if (cambios) renderFundosVisitados(); })
+                .catch(e => console.warn('Error cargando fundos visitados:', e));
             verificarAccesoPlataforma();
+            iniciarAccesoConfiguracionServidor();
+            actualizarAvisoServidor();
+            iniciarSincronizacionAutomatica();
         }
 
         document.addEventListener('DOMContentLoaded', () => {
             initAndroidApp();
         });
 
-        // ------------------ LOGICA DE LA BANDEJA (localStorage) ------------------
-        function getSavedFormsList() {
-            const raw = localStorage.getItem('irf_forms_index');
-            return raw ? JSON.parse(raw) : [];
+        // Avisos de los módulos de sincronización / API (ver sync.js)
+        window.addEventListener('irf:bandeja-actualizada', () => renderSavedForms());
+        window.addEventListener('irf:fundos-actualizados', () => renderFundosVisitados());
+        window.addEventListener('irf:sesion-expirada', () => sesionExpirada());
+        window.addEventListener('irf:formularios-enviados', () => {
+            const prevContainer = document.getElementById('view-prevencionista-container');
+            if (prevContainer && prevContainer.style.display !== 'none') cargarFormulariosPrevencionista();
+        });
+
+        // ------------------ LOGICA DE LA BANDEJA ------------------
+        // El índice (solo metadatos) vive en localStorage; el contenido de cada formulario en IndexedDB (formStore.js)
+        function formatearFechaHora(valor) {
+            return valor ? new Date(valor).toLocaleString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
         }
 
-        function setSavedFormsList(list) {
-            localStorage.setItem('irf_forms_index', JSON.stringify(list));
+        function estadoEnvioHTML(item) {
+            const base = 'display:inline-block; font-size:11px; font-weight:700; padding:3px 8px; border-radius:999px; margin-bottom:10px;';
+            if (item.synced) {
+                return `<span style="${base} background:rgba(22,163,74,0.12); color:#16a34a;">✅ Enviado ${formatearFechaHora(item.syncedAt)}</span>`;
+            }
+            if (item.lastError) {
+                return `<span style="${base} background:rgba(220,38,38,0.12); color:#dc2626;">⚠️ Error al enviar (${formatearFechaHora(item.lastAttemptAt)})</span>
+                        <div style="font-size:11px; color:var(--text-muted); margin:-6px 0 10px;">${escapeHTML(item.lastError)}</div>`;
+            }
+            return `<span style="${base} background:rgba(234,179,8,0.15); color:#b45309;">⏳ Pendiente de envío</span>`;
+        }
+
+        // Badge de la bandeja: conexión + cantidad de formularios sin enviar
+        function actualizarIndicadorConexion() {
+            const badge = document.getElementById('sync-connection-badge');
+            if (!badge) return;
+            const pendientes = getFormulariosPendientes().length;
+            const online = navigator.onLine;
+            const textoPendientes = pendientes > 0 ? ` · ${pendientes} pendiente${pendientes === 1 ? '' : 's'}` : '';
+            badge.innerText = (online ? '🟢 En línea' : '🔴 Sin señal') + textoPendientes;
+            badge.className = 'status-badge ' + (pendientes > 0 ? 'status-incomplete' : (online ? 'status-complete' : 'status-empty'));
         }
 
         function renderSavedForms() {
             const container = document.getElementById('saved-forms-list');
             if (!container) return;
             const list = getSavedFormsList();
+
+            actualizarIndicadorConexion();
 
             if (!list || list.length === 0) {
                 container.innerHTML = `
@@ -2087,7 +1950,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 html += `
                     <div style="background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius-sm); padding:12px; margin-bottom:10px;">
                         <div style="font-weight:700; font-size:14px; color:var(--text-main); margin-bottom:2px;">${escapeHTML(item.nombre)}</div>
-                        <div style="font-size:11px; color:var(--text-muted); margin-bottom:10px;">Guardado: ${dateStr}</div>
+                        <div style="font-size:11px; color:var(--text-muted); margin-bottom:6px;">Guardado: ${dateStr}</div>
+                        ${estadoEnvioHTML(item)}
                         <div style="display:flex; gap:8px; flex-wrap:wrap;">
                             <button type="button" onclick="cargarFormulario('${item.id}')" style="flex:1; padding:8px; font-size:12px; font-weight:600; background:var(--primary); color:#fff; border:none; border-radius:var(--radius-sm); cursor:pointer;">📂 Cargar</button>
                             <button type="button" onclick="borrarFormulario('${item.id}')" style="padding:8px 12px; font-size:12px; font-weight:600; background:rgba(220,38,38,0.1); color:#dc2626; border:1px solid rgba(220,38,38,0.3); border-radius:var(--radius-sm); cursor:pointer;">🗑</button>
@@ -2099,167 +1963,171 @@ document.addEventListener('DOMContentLoaded', () => {
             container.innerHTML = html;
         }
 
-        function getServerUrl() {
-            let url = localStorage.getItem('irf_server_url');
-            if (!url || url.startsWith('http://services.planinfor.cl') || url.startsWith('http://190.13.189.196')) {
-                url = 'https://services.planinfor.cl:8091';
-                localStorage.setItem('irf_server_url', url);
-            }
-            return url;
-        }
-
-        function setServerUrl(url) {
-            if (url) {
-                let clean = url.trim().replace(/\/$/, '');
-                if (!clean.startsWith('http://') && !clean.startsWith('https://')) {
-                    clean = 'https://' + clean;
-                }
-                if (clean.includes('services.planinfor.cl')) {
-                    clean = clean.replace(/^http:\/\//, 'https://');
-                }
-                localStorage.setItem('irf_server_url', clean);
-            }
-        }
-
+        // Se abre con 5 toques seguidos sobre el título de la app (oculto para no cambiarlo por error en terreno)
         async function configurarServidorUrl() {
             const current = getServerUrl();
             const val = await mostrarPromptCustom({
-                title: '⚙️ Configuración del Servidor API',
-                message: 'Ingrese la Dirección IP o URL del Servidor API de Sincronización (Producción Planinfor):',
+                title: '⚙️ Servidor de sincronización',
+                message: `Producción: ${SERVIDOR_PRODUCCION}
+Para pruebas ingrese la dirección del servidor de pruebas (ej: http://192.168.1.50:3000).
+Escriba "produccion" para volver a producción.`,
                 defaultValue: current,
-                confirmText: 'Guardar Configuración'
+                confirmText: 'Guardar'
             });
-            if (val !== null && val.trim() !== '') {
-                setServerUrl(val);
-                showToast(`✅ Servidor configurado en: ${getServerUrl()}`, 'success');
-            }
+            if (val === null || val.trim() === '') return;
+            setServerUrl(/^producci[oó]n$/i.test(val.trim()) ? SERVIDOR_PRODUCCION : val);
+            actualizarAvisoServidor();
+            showToast(`✅ Servidor configurado en: ${getServerUrl()}`, 'success');
         }
 
-        async function tryFetchWithFallback(endpoint, options = {}) {
-            const configuredUrl = (getServerUrl() || 'https://services.planinfor.cl:8091').replace(/\/$/, '');
-
-            const candidateUrls = [
-                configuredUrl,
-                'https://services.planinfor.cl:8091'
-            ];
-
-            const uniqueCandidates = [...new Set(candidateUrls)];
-            let lastError = null;
-            let lastResponse = null;
-
-            for (const baseUrl of uniqueCandidates) {
-                const targetUrl = baseUrl + (endpoint.startsWith('/') ? endpoint : '/' + endpoint);
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 seconds for heavy images
-
-                try {
-                    const res = await fetch(targetUrl, {
-                        ...options,
-                        signal: controller.signal,
-                        headers: {
-                            'Content-Type': 'application/json',
-                            ...(options.headers || {})
-                        }
-                    });
-                    clearTimeout(timeoutId);
-                    if (res.ok) return res;
-                    lastResponse = res;
-                } catch (err) {
-                    clearTimeout(timeoutId);
-                    lastError = err;
-                    console.warn(`Intento fallido a ${targetUrl}:`, err);
-                }
-            }
-
-            if (lastResponse) return lastResponse;
-            throw lastError || new Error('No se pudo conectar a ningún servidor de sincronización.');
+        // Aviso permanente cuando la app no envía a producción
+        function actualizarAvisoServidor() {
+            const aviso = document.getElementById('aviso-servidor-pruebas');
+            if (!aviso) return;
+            const pruebas = !import.meta.env.DEV && !esServidorProduccion();
+            aviso.style.display = pruebas ? 'block' : 'none';
+            if (pruebas) aviso.textContent = `🧪 MODO PRUEBAS — los formularios se envían a ${getServerUrl()} (no a producción)`;
         }
 
-        async function sincronizarTodos(directFormObj) {
-            showToast('Iniciando sincronización con el servidor...', 'info');
-            let list = getSavedFormsList() || [];
-
-            let itemsToSync = [];
-            if (directFormObj && directFormObj.id) {
-                itemsToSync.push({ itemRef: null, formObj: directFormObj });
-            }
-
-            for (const item of list) {
-                if (directFormObj && directFormObj.id === item.id) continue;
-                if (item.synced) continue; // Skip already synced forms!
-
-                const raw = localStorage.getItem('irf_form_' + item.id);
-                if (raw) {
-                    try {
-                        itemsToSync.push({ itemRef: item, formObj: JSON.parse(raw) });
-                    } catch (e) {
-                        console.warn('Error parsing form item', e);
-                    }
+        function iniciarAccesoConfiguracionServidor() {
+            const titulo = document.querySelector('.app-header .brand-text h1');
+            if (!titulo) return;
+            let toques = 0;
+            let timer = null;
+            titulo.addEventListener('click', () => {
+                toques++;
+                clearTimeout(timer);
+                timer = setTimeout(() => { toques = 0; }, 2000);
+                if (toques >= 5) {
+                    toques = 0;
+                    configurarServidorUrl();
                 }
-            }
+            });
+        }
 
-            if (itemsToSync.length === 0) {
-                showToast('No hay formularios guardados localmente para sincronizar', 'info');
+        function formatearFechaVisita(ts) {
+            return ts ? new Date(ts).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
+        }
+
+        function renderFundosVisitados() {
+            const container = document.getElementById('fundos-visitados-list');
+            if (!container) return;
+            const fundos = Object.entries(getFundosVisitados()).sort((a, b) => (b[1].updatedAt || 0) - (a[1].updatedAt || 0));
+
+            if (fundos.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; color: var(--text-muted); font-style: italic; padding: 12px; border: 1px dashed var(--border); border-radius: var(--radius-sm); font-size:12px;">
+                        Aún no hay fundos visitados. Se agregan al guardar un IRF.
+                    </div>
+                `;
                 return;
             }
 
-            let countSuccess = 0;
-            let lastErrorMsg = '';
+            container.innerHTML = fundos.map(([key, f]) => {
+                const detalles = [
+                    f.area ? escapeHTML(f.area) : '',
+                    `Última visita: ${formatearFechaVisita(f.updatedAt)}`,
+                    `${(f.peligros || []).length} peligro(s)`,
+                    (f.latitud && f.longitud) ? '📍 coordenadas' : ''
+                ].filter(Boolean).join(' · ');
+                const keyAttr = encodeURIComponent(key).replace(/'/g, '%27');
+                return `
+                    <div style="background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 12px; margin-bottom:8px;">
+                        <div style="font-weight:700; font-size:13px; color:var(--text-main);">${escapeHTML(f.fundo)}</div>
+                        <div style="font-size:11px; color:var(--text-muted); margin:2px 0 8px;">${detalles}</div>
+                        <div style="display:flex; gap:8px;">
+                            <button type="button" onclick="nuevoIrfEnFundo('${keyAttr}')" style="flex:1; padding:7px; font-size:12px; font-weight:600; background:var(--primary); color:#fff; border:none; border-radius:var(--radius-sm); cursor:pointer;">➕ Nuevo IRF en este fundo</button>
+                            <button type="button" onclick="olvidarFundoVisitado('${keyAttr}')" title="Quitar de la lista" style="padding:7px 12px; font-size:12px; font-weight:600; background:rgba(220,38,38,0.1); color:#dc2626; border:1px solid rgba(220,38,38,0.3); border-radius:var(--radius-sm); cursor:pointer;">🗑</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
 
-            for (const entry of itemsToSync) {
-                try {
-                    const response = await tryFetchWithFallback('/api/sync', {
-                        method: 'POST',
-                        body: JSON.stringify(entry.formObj)
-                    });
+        function aplicarDatosFundo(f) {
+            const setVal = (id, v) => {
+                const el = document.getElementById(id);
+                if (el && v) el.value = v;
+            };
+            setVal('fundo_instalacion', f.fundo);
+            setVal('area_relacionamiento', f.area);
+            setVal('latitud', f.latitud);
+            setVal('longitud', f.longitud);
 
-                    if (response.ok) {
-                        countSuccess++;
-                        if (entry.itemRef) {
-                            entry.itemRef.synced = true;
-                            entry.itemRef.syncedAt = new Date().toISOString();
-                        } else {
-                            const idx = list.findIndex(l => l.id === entry.formObj.id);
-                            if (idx >= 0) {
-                                list[idx].synced = true;
-                                list[idx].syncedAt = new Date().toISOString();
-                            } else {
-                                list.push({
-                                    id: entry.formObj.id,
-                                    nombre: entry.formObj.nombre,
-                                    savedAt: entry.formObj.savedAt,
-                                    synced: true,
-                                    syncedAt: new Date().toISOString()
-                                });
-                            }
-                        }
-                    } else {
-                        const errTxt = await response.text();
-                        lastErrorMsg = `HTTP ${response.status}: ${errTxt}`;
-                        console.error('Servidor retornó error al sincronizar ' + entry.formObj.id, errTxt);
-                    }
-                } catch (err) {
-                    lastErrorMsg = err.message || String(err);
-                    console.error('Error de red al sincronizar formulario ' + entry.formObj.id, err);
-                }
+            const fecha = document.getElementById('fecha_inicio')?.value || new Date().toISOString().split('T')[0];
+            peligrosList = peligrosReutilizables(f.peligros).map(p => ({ ...p, fecha }));
+            actualizarTablaPeligros();
+            if (typeof updateFirssoInicialUI === 'function') updateFirssoInicialUI();
+            if (typeof checkStepCompletion === 'function') checkStepCompletion();
+            saveDraft();
+            ocultarAvisoFundoVisitado();
+            showToast(`📍 Datos de "${f.fundo}" cargados. Revise los peligros antes de guardar.`, 'success');
+        }
+
+        async function nuevoIrfEnFundo(keyAttr) {
+            const f = getFundosVisitados()[decodeURIComponent(keyAttr)];
+            if (!f) return;
+            const ok = await mostrarConfirmacionCustom({
+                title: '📍 Nuevo IRF en ' + f.fundo,
+                message: 'Se limpiará el formulario en pantalla y se precargarán el área, las coordenadas y los peligros registrados en la última visita a este fundo.',
+                confirmText: 'Sí, Crear IRF',
+                type: 'warning'
+            });
+            if (!ok) return;
+            limpiarFormulario();
+            aplicarDatosFundo(f);
+            const dash = document.getElementById('offline-dashboard');
+            if (dash && dash.classList.contains('active')) toggleAccordion('offline-dashboard');
+        }
+
+        async function olvidarFundoVisitado(keyAttr) {
+            const key = decodeURIComponent(keyAttr);
+            const map = getFundosVisitados();
+            if (!map[key]) return;
+            const ok = await mostrarConfirmacionCustom({
+                title: '🗑 ¿Quitar fundo?',
+                message: `"${map[key].fundo}" se quitará de la lista de fundos visitados. Los formularios guardados no se borran.`,
+                confirmText: 'Sí, Quitar',
+                type: 'danger'
+            });
+            if (!ok) return;
+            delete map[key];
+            setFundosVisitados(map);
+            renderFundosVisitados();
+        }
+
+        function ocultarAvisoFundoVisitado() {
+            const aviso = document.getElementById('aviso-fundo-visitado');
+            if (aviso) aviso.style.display = 'none';
+        }
+
+        // Al escribir un fundo ya visitado en un IRF sin peligros cargados, ofrecer precargar sus datos
+        function mostrarAvisoFundoVisitado() {
+            const input = document.getElementById('fundo_instalacion');
+            if (!input) return;
+            let aviso = document.getElementById('aviso-fundo-visitado');
+            if (!aviso) {
+                aviso = document.createElement('div');
+                aviso.id = 'aviso-fundo-visitado';
+                aviso.style.cssText = 'display:none; margin-top:8px; padding:10px 12px; background:rgba(37,99,235,0.08); border:1px solid rgba(37,99,235,0.3); border-radius:var(--radius-sm); font-size:12px; color:var(--text-main);';
+                const group = input.closest('.form-group') || input.parentNode;
+                group.appendChild(aviso);
             }
 
-            try {
-                setSavedFormsList(list);
-                renderSavedForms();
-            } catch (e) {
-                console.warn('Error re-rendering saved forms list:', e);
+            const f = getFundoVisitado(input.value);
+            if (!f || peligrosList.length > 0) {
+                aviso.style.display = 'none';
+                return;
             }
-
-            if (countSuccess > 0) {
-                showToast(`✅ Sincronizados con éxito: ${countSuccess} de ${itemsToSync.length} formularios en la base de datos.`, 'success');
-                const prevContainer = document.getElementById('view-prevencionista-container');
-                if (prevContainer && prevContainer.style.display !== 'none') {
-                    cargarFormulariosPrevencionista();
-                }
-            } else {
-                showToast(`⚠️ No se pudo sincronizar: ${lastErrorMsg || 'Error de conexión'}`, 'danger');
-            }
+            aviso.innerHTML = `
+                <div style="margin-bottom:8px;">📍 <strong>Fundo visitado anteriormente</strong> (última visita ${formatearFechaVisita(f.updatedAt)}).
+                Hay ${(f.peligros || []).length} peligro(s)${(f.latitud && f.longitud) ? ' y coordenadas de rescate' : ''} guardados.</div>
+                <button type="button" class="aviso-fundo-aplicar" style="padding:7px 12px; font-size:12px; font-weight:600; background:var(--primary); color:#fff; border:none; border-radius:var(--radius-sm); cursor:pointer;">Cargar datos del fundo</button>
+                <button type="button" class="aviso-fundo-ignorar" style="padding:7px 12px; font-size:12px; background:none; border:none; color:var(--text-muted); cursor:pointer;">Ignorar</button>
+            `;
+            aviso.querySelector('.aviso-fundo-aplicar').onclick = () => aplicarDatosFundo(f);
+            aviso.querySelector('.aviso-fundo-ignorar').onclick = ocultarAvisoFundoVisitado;
+            aviso.style.display = 'block';
         }
 
         // ------------------ MODULO VISTA PREVENCIONISTA ------------------
@@ -2303,6 +2171,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const response = await tryFetchWithFallback('/api/forms');
                 if (!response.ok) throw new Error('Servidor retornó error HTTP ' + response.status);
+                formulariosCompletos.clear();
                 const json = await response.json();
                 syncedFormsCache = (json.forms || []).filter(f => f && f.id);
 
@@ -2335,42 +2204,158 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        function getJefeFaena(item) {
+            const inputs = ((item && (item.data || item.data_payload)) || {}).inputs || {};
+            return (item?.jefe_faena || inputs.jefe_faena || '').trim();
+        }
+
+        // La lista del servidor trae solo el resumen; el formulario completo (fotos, firmas, historial)
+        // se pide al abrir uno y se guarda en memoria mientras la lista no se recargue.
+        const formulariosCompletos = new Map();
+
+        async function obtenerFormularioCompleto(id) {
+            if (formulariosCompletos.has(id)) return formulariosCompletos.get(id);
+            showToast('Recuperando datos del servidor...', 'info');
+            const res = await tryFetchWithFallback(`/api/forms/${encodeURIComponent(id)}`);
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok || !json.success || !json.form) {
+                throw new Error(json.error || 'No se encontraron los datos completos del registro');
+            }
+            formulariosCompletos.set(id, json.form);
+            return json.form;
+        }
+
+        // Texto sin tildes ni mayúsculas, para que "rodriguez" encuentre "Rodríguez"
+        function normalizarTexto(texto) {
+            return (texto || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+        }
+
+        // Filtros Fundo, Supervisor y Jefe de Faena: se puede escribir (filtra por coincidencia parcial)
+        // o abrir la lista completa con la flecha, como un selector.
+        const FILTROS_COMBO = {
+            'prev-filter-fundo': { texto: 'Todos los fundos', valores: (forms) => forms.map(f => f.fundo_instalacion) },
+            'prev-filter-supervisor': { texto: 'Todos los supervisores', valores: (forms) => forms.map(f => f.supervisor) },
+            'prev-filter-jefe': { texto: 'Todos los jefes de faena', valores: (forms) => forms.map(getJefeFaena) }
+        };
+        const opcionesFiltros = {};
+
         function poblarOpcionesFiltrosPrevencionista(forms) {
-            const fundoSelect = document.getElementById('prev-filter-fundo');
-            const supervisorSelect = document.getElementById('prev-filter-supervisor');
-            if (!fundoSelect || !supervisorSelect) return;
+            for (const [inputId, cfg] of Object.entries(FILTROS_COMBO)) {
+                const input = document.getElementById(inputId);
+                if (!input) continue;
+                const valores = Array.from(new Set(cfg.valores(forms || []).map(v => (v || '').trim()).filter(Boolean)))
+                    .sort((a, b) => a.localeCompare(b, 'es'));
+                opcionesFiltros[inputId] = valores;
+                input.placeholder = `${cfg.texto} (${valores.length})`;
+                initComboFiltro(input);
+            }
+        }
 
-            const currentFundo = fundoSelect.value;
-            const currentSupervisor = supervisorSelect.value;
+        function initComboFiltro(input) {
+            if (input.dataset.combo) return;
+            input.dataset.combo = 'true';
 
-            // Extraer fundos únicos
-            const fundos = Array.from(new Set((forms || []).map(f => (f.fundo_instalacion || '').trim()).filter(Boolean))).sort();
-            
-            // Extraer supervisores únicos
-            const supervisoresSet = new Set();
-            (forms || []).forEach(f => {
-                if (f.supervisor && f.supervisor.trim()) supervisoresSet.add(f.supervisor.trim());
+            const wrap = document.createElement('div');
+            wrap.className = 'prev-combo';
+            input.parentNode.insertBefore(wrap, input);
+            wrap.appendChild(input);
+
+            const boton = document.createElement('button');
+            boton.type = 'button';
+            boton.className = 'prev-combo-toggle';
+            boton.tabIndex = -1;
+            boton.setAttribute('aria-label', 'Ver lista');
+            boton.innerHTML = '<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg>';
+            wrap.appendChild(boton);
+
+            const lista = document.createElement('div');
+            lista.className = 'autocomplete-items prev-combo-list';
+            lista.setAttribute('role', 'listbox');
+            wrap.appendChild(lista);
+
+            let items = [];
+            let activo = -1;
+            const abierta = () => lista.style.display === 'block';
+
+            function marcarActivo() {
+                [...lista.children].forEach((el, i) => el.classList.toggle('activo', i === activo));
+                if (activo >= 0) lista.children[activo]?.scrollIntoView({ block: 'nearest' });
+            }
+
+            // verTodo: al abrir con la flecha o al entrar al campo se listan todas las opciones
+            function abrir(verTodo) {
+                const texto = verTodo ? '' : normalizarTexto(input.value);
+                const valores = (opcionesFiltros[input.id] || []).filter(v => !texto || normalizarTexto(v).includes(texto));
+                items = [{ valor: '', etiqueta: input.placeholder, todos: true }, ...valores.map(v => ({ valor: v, etiqueta: v }))];
+                lista.innerHTML = '';
+                items.forEach((it, i) => {
+                    const el = document.createElement('div');
+                    el.className = 'autocomplete-item' + (it.todos ? ' todos' : '') + (it.valor && it.valor === input.value.trim() ? ' seleccionado' : '');
+                    el.textContent = it.etiqueta;
+                    el.addEventListener('mousedown', (e) => {
+                        e.preventDefault();
+                        elegir(i);
+                    });
+                    lista.appendChild(el);
+                });
+                if (valores.length === 0 && texto) {
+                    const vacio = document.createElement('div');
+                    vacio.className = 'autocomplete-item sin-resultados';
+                    vacio.textContent = 'Sin coincidencias';
+                    lista.appendChild(vacio);
+                }
+                activo = -1;
+                lista.style.display = 'block';
+                boton.classList.add('abierto');
+            }
+
+            function cerrar() {
+                lista.style.display = 'none';
+                boton.classList.remove('abierto');
+            }
+
+            function elegir(i) {
+                input.value = items[i]?.valor || '';
+                cerrar();
+                filtrarTablaPrevencionista();
+            }
+
+            input.addEventListener('focus', () => abrir(true));
+            input.addEventListener('click', () => { if (!abierta()) abrir(true); });
+            input.addEventListener('input', () => {
+                abrir(false);
+                filtrarTablaPrevencionista();
             });
-            const supervisores = Array.from(supervisoresSet).sort();
-
-            let fundoOptions = '<option value="">Todos los fundos (' + fundos.length + ')</option>';
-            fundos.forEach(f => {
-                fundoOptions += `<option value="${escapeHTML(f)}">${escapeHTML(f)}</option>`;
+            input.addEventListener('blur', () => setTimeout(cerrar, 120));
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (!abierta()) abrir(true);
+                    const n = items.length;
+                    activo = e.key === 'ArrowDown' ? (activo + 1) % n : (activo - 1 + n) % n;
+                    marcarActivo();
+                } else if (e.key === 'Enter' && abierta() && activo >= 0) {
+                    e.preventDefault();
+                    elegir(activo);
+                } else if (e.key === 'Escape') {
+                    cerrar();
+                }
             });
-            fundoSelect.innerHTML = fundoOptions;
-            if (fundos.includes(currentFundo)) fundoSelect.value = currentFundo;
-
-            let supervisorOptions = '<option value="">Todos los supervisores (' + supervisores.length + ')</option>';
-            supervisores.forEach(s => {
-                supervisorOptions += `<option value="${escapeHTML(s)}">${escapeHTML(s)}</option>`;
+            boton.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                if (abierta()) {
+                    cerrar();
+                } else {
+                    if (document.activeElement !== input) input.focus();
+                    abrir(true);
+                }
             });
-            supervisorSelect.innerHTML = supervisorOptions;
-            if (supervisores.includes(currentSupervisor)) supervisorSelect.value = currentSupervisor;
         }
 
         function filtrarTablaPrevencionista() {
-            const fundoValue = (document.getElementById('prev-filter-fundo')?.value || '').trim().toLowerCase();
-            const supervisorValue = (document.getElementById('prev-filter-supervisor')?.value || '').trim().toLowerCase();
+            const fundoValue = normalizarTexto(document.getElementById('prev-filter-fundo')?.value);
+            const supervisorValue = normalizarTexto(document.getElementById('prev-filter-supervisor')?.value);
+            const jefeValue = normalizarTexto(document.getElementById('prev-filter-jefe')?.value);
             const fechaValue = (document.getElementById('prev-filter-fecha')?.value || '').trim();
             const queryValue = (document.getElementById('prev-search-input')?.value || '').trim().toLowerCase();
 
@@ -2380,16 +2365,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const filtered = (syncedFormsCache || []).filter(item => {
                 // Filtro Fundo
-                if (fundoValue) {
-                    const itemFundo = (item.fundo_instalacion || '').toLowerCase();
-                    if (itemFundo !== fundoValue) return false;
-                }
+                if (fundoValue && !normalizarTexto(item.fundo_instalacion).includes(fundoValue)) return false;
 
                 // Filtro Supervisor
-                if (supervisorValue) {
-                    const itemSup = (item.supervisor || '').toLowerCase();
-                    if (itemSup !== supervisorValue) return false;
-                }
+                if (supervisorValue && !normalizarTexto(item.supervisor).includes(supervisorValue)) return false;
+
+                // Filtro Jefe de Faena
+                if (jefeValue && !normalizarTexto(getJefeFaena(item)).includes(jefeValue)) return false;
 
                 // Filtro Fecha (Compara YYYY-MM-DD contra fecha_inicio o synced_at/saved_at)
                 if (fechaValue) {
@@ -2401,7 +2383,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Búsqueda General Texto
                 if (queryValue) {
-                    const searchStr = `${item.fundo_instalacion || ''} ${item.faena || ''} ${item.supervisor || ''} ${item.asesor_prevencion || ''} ${item.fecha_inicio || ''} ${item.nombre || ''}`.toLowerCase();
+                    const searchStr = `${item.fundo_instalacion || ''} ${item.faena || ''} ${item.supervisor || ''} ${getJefeFaena(item)} ${item.asesor_prevencion || ''} ${item.fecha_inicio || ''} ${item.nombre || ''}`.toLowerCase();
                     if (!searchStr.includes(queryValue)) return false;
                 }
 
@@ -2411,12 +2393,13 @@ document.addEventListener('DOMContentLoaded', () => {
             // Actualizar chips de filtros activos
             const chips = [];
             if (fundoValue) {
-                const rawName = document.getElementById('prev-filter-fundo')?.options[document.getElementById('prev-filter-fundo')?.selectedIndex]?.text || fundoValue;
-                chips.push({ key: 'fundo', label: 'Fundo: ' + rawName });
+                chips.push({ key: 'fundo', label: 'Fundo: ' + document.getElementById('prev-filter-fundo').value.trim() });
             }
             if (supervisorValue) {
-                const rawName = document.getElementById('prev-filter-supervisor')?.options[document.getElementById('prev-filter-supervisor')?.selectedIndex]?.text || supervisorValue;
-                chips.push({ key: 'supervisor', label: 'Supervisor: ' + rawName });
+                chips.push({ key: 'supervisor', label: 'Supervisor: ' + document.getElementById('prev-filter-supervisor').value.trim() });
+            }
+            if (jefeValue) {
+                chips.push({ key: 'jefe', label: 'Jefe de Faena: ' + document.getElementById('prev-filter-jefe').value.trim() });
             }
             if (fechaValue) {
                 chips.push({ key: 'fecha', label: 'Fecha: ' + fechaValue });
@@ -2452,6 +2435,9 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (key === 'supervisor') {
                 const el = document.getElementById('prev-filter-supervisor');
                 if (el) el.value = '';
+            } else if (key === 'jefe') {
+                const el = document.getElementById('prev-filter-jefe');
+                if (el) el.value = '';
             } else if (key === 'fecha') {
                 const el = document.getElementById('prev-filter-fecha');
                 if (el) el.value = '';
@@ -2470,6 +2456,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (fundoEl) fundoEl.value = '';
             if (supEl) supEl.value = '';
+            const jefeEl = document.getElementById('prev-filter-jefe');
+            if (jefeEl) jefeEl.value = '';
             if (fechaEl) fechaEl.value = '';
             if (searchEl) searchEl.value = '';
 
@@ -2538,7 +2526,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const faenaStr = escapeHTML(item.faena || 'Sin faena');
                 const fechaStr = escapeHTML(item.fecha_inicio || 'N/A');
                 const supervisorStr = escapeHTML(item.supervisor || 'N/A');
-                const asesorStr = escapeHTML(item.asesor_prevencion || 'N/A');
+                const jefeFaenaStr = escapeHTML(getJefeFaena(item) || 'N/A');
                 const peligros = parseInt(item.cant_peligros) || 0;
                 const hazardClass = peligros >= 5 ? 'hazards-high' : 'hazards';
 
@@ -2551,8 +2539,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         <td><span class="prev-cell-faena">${faenaStr}</span></td>
                         <td><span style="font-size:12.5px; font-weight:600;">${fechaStr}</span></td>
                         <td>
-                            <div class="prev-cell-supervisor">${supervisorStr}</div>
-                            <div class="prev-cell-asesor">Prev: ${asesorStr}</div>
+                            <div class="prev-cell-supervisor">${jefeFaenaStr}</div>
+                            <div class="prev-cell-asesor">Supervisor: ${supervisorStr}</div>
                         </td>
                         <td class="center"><span class="prev-cell-count participants">${item.cant_participantes || 0}</span></td>
                         <td class="center"><span class="prev-cell-count ${hazardClass}">${peligros}</span></td>
@@ -2668,8 +2656,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         async function descargarPdfVersionHistorica(formId, historyIndex) {
-            const item = syncedFormsCache.find(f => f.id === formId);
-            if (!item || !item.version_history || !item.version_history[historyIndex]) {
+            let item;
+            try {
+                item = await obtenerFormularioCompleto(formId);
+            } catch (e) {
+                showToast('❌ ' + e.message, 'danger');
+                return;
+            }
+            if (!item.version_history || !item.version_history[historyIndex]) {
                 showToast('❌ No se encontró la versión histórica especificada', 'danger');
                 return;
             }
@@ -2685,23 +2679,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         async function descargarPdfFormulario(id) {
-            showToast('Recuperando datos del servidor...', 'info');
-            let formRecord = syncedFormsCache.find(f => f.id === id);
-
-            if (!formRecord || !formRecord.data) {
-                try {
-                    const res = await tryFetchWithFallback(`/api/forms/${id}`);
-                    const json = await res.json();
-                    if (json.success && json.form) {
-                        formRecord = json.form;
-                    }
-                } catch (e) {
-                    console.error(e);
-                }
-            }
-
-            if (!formRecord || !formRecord.data) {
-                showToast('Error: No se encontraron los datos completos del registro', 'danger');
+            let formRecord;
+            try {
+                formRecord = await obtenerFormularioCompleto(id);
+            } catch (e) {
+                console.error(e);
+                showToast('Error: ' + e.message, 'danger');
                 return;
             }
 
@@ -2718,9 +2701,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 300);
         }
 
-        function cargarFormularioParaVer(id) {
-            const formRecord = syncedFormsCache.find(f => f.id === id);
-            if (!formRecord || !formRecord.data) return;
+        async function cargarFormularioParaVer(id) {
+            let formRecord;
+            try {
+                formRecord = await obtenerFormularioCompleto(id);
+            } catch (e) {
+                showToast('Error: ' + e.message, 'danger');
+                return;
+            }
 
             const formContainer = document.getElementById('view-form-container');
             const prevContainer = document.getElementById('view-prevencionista-container');
@@ -2766,10 +2754,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 type: 'danger'
             });
             if (!ok) return;
+            await removeForm(formId);
             let list = getSavedFormsList();
             list = list.filter(f => f.id !== formId);
             setSavedFormsList(list);
-            localStorage.removeItem('irf_form_' + formId);
             if (currentActiveFormId === formId) {
                 currentActiveFormId = 'irf_' + Date.now();
             }
@@ -2785,6 +2773,44 @@ document.addEventListener('DOMContentLoaded', () => {
                 type: 'warning'
             });
             if (ok) {
+                const precargado = limpiarFormulario();
+                showToast(precargado ? 'Nuevo formulario listo. Se precargó el equipo del último IRF (revíselo).' : 'Nuevo formulario listo', 'success');
+            }
+        }
+
+        // Datos del equipo que suelen repetirse entre IRF del mismo trabajador
+        const CAMPOS_EQUIPO = ['supervisor', 'jefe_faena', 'clave_jefe_faena', 'asesor_prev_riesgos', 'codigo_pais_jefe', 'numero_jefe_faena'];
+        const ULTIMO_EQUIPO_KEY = 'irf_ultimo_equipo';
+
+        function recordarEquipo() {
+            const equipo = {};
+            CAMPOS_EQUIPO.forEach(id => {
+                const v = document.getElementById(id)?.value?.trim();
+                if (v) equipo[id] = v;
+            });
+            if (equipo.jefe_faena || equipo.supervisor) localStorage.setItem(ULTIMO_EQUIPO_KEY, JSON.stringify(equipo));
+        }
+
+        // Rellena los campos del equipo con los del último IRF guardado. Devuelve true si precargó algo.
+        function precargarEquipo() {
+            let equipo;
+            try {
+                equipo = JSON.parse(localStorage.getItem(ULTIMO_EQUIPO_KEY));
+            } catch (e) {
+                equipo = null;
+            }
+            if (!equipo) return false;
+            CAMPOS_EQUIPO.forEach(id => {
+                const el = document.getElementById(id);
+                if (el && equipo[id]) el.value = equipo[id];
+            });
+            if (equipo.jefe_faena) autoAddJefeFaena();
+            checkStepCompletion();
+            return true;
+        }
+
+        function limpiarFormulario() {
+            {
                 document.getElementById('irf-form').reset();
                 if (typeof pad0 !== 'undefined' && pad0) pad0.clear();
                 if (typeof pad1 !== 'undefined' && pad1) pad1.clear();
@@ -2803,7 +2829,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Re-init custom selects in case they need refresh
                 if (typeof initCustomSelects === 'function') setTimeout(initCustomSelects, 100);
                 currentActiveFormId = 'irf_' + Date.now();
-                showToast('Nuevo formulario listo', 'success');
+                ocultarAvisoFundoVisitado();
+                return precargarEquipo();
             }
         }
 
@@ -2815,12 +2842,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 type: 'warning'
             });
             if (!ok) return;
-            const raw = localStorage.getItem('irf_form_' + formId);
-            if (!raw) {
+            const formObj = await getForm(formId);
+            if (!formObj) {
                 showToast('No se encontraron datos del formulario', 'danger');
                 return;
             }
-            const formObj = JSON.parse(raw);
             document.getElementById('irf-form').reset();
             participantesList = [];
             peligrosList = [];
@@ -2838,7 +2864,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 peligros: typeof peligrosList !== 'undefined' ? peligrosList : []
             };
             document.querySelectorAll('#irf-form input, #irf-form select, #irf-form textarea').forEach(el => {
-                if (el.id && el.type !== 'file') {
+                // peligros_hidden duplica draft.peligros (incluidas las fotos): no se guarda
+                if (el.id && el.type !== 'file' && el.id !== 'peligros_hidden') {
                     draft.inputs[el.id] = el.value;
                 }
             });
@@ -2902,25 +2929,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 data: serializeForm()
             };
 
-            let savedLocally = false;
             try {
-                localStorage.setItem('irf_form_' + currentActiveFormId, JSON.stringify(formObj));
+                recordarEquipo();
+                registrarFundoVisitado(formObj.data, formObj.savedAt);
+                renderFundosVisitados();
+            } catch (e) {
+                console.warn('No se pudo registrar el fundo visitado:', e);
+            }
+
+            // Nunca se borran otros formularios para hacer espacio: si falla, se avisa y el formulario sigue en pantalla
+            let savedLocally = false;
+            let saveError = null;
+            try {
+                await putForm(formObj);
                 savedLocally = true;
-            } catch (quotaErr) {
-                console.warn('LocalStorage Quota Exceeded, cleaning old synced items:', quotaErr);
-                try {
-                    let list = getSavedFormsList();
-                    const unSynced = list.filter(item => !item.synced);
-                    const synced = list.filter(item => item.synced);
-                    if (synced.length > 0) {
-                        synced.forEach(s => localStorage.removeItem('irf_form_' + s.id));
-                        setSavedFormsList(unSynced);
-                    }
-                    localStorage.setItem('irf_form_' + currentActiveFormId, JSON.stringify(formObj));
-                    savedLocally = true;
-                } catch (retryErr) {
-                    console.error('Failed to save to localStorage after cleanup:', retryErr);
-                }
+            } catch (err) {
+                saveError = err;
+                console.error('No se pudo guardar el formulario en el equipo:', err);
             }
 
             if (savedLocally) {
@@ -2943,19 +2968,80 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 showToast('✅ Formulario guardado localmente: "' + nombre + '"', 'success');
             } else {
-                showToast('⚠️ Sin espacio. Sincronice o elimine formularios antiguos.', 'warning');
+                showToast('⚠️ No se pudo guardar en el equipo (' + (saveError?.message || 'error desconocido') + '). No cierre la app: sincronice o exporte un respaldo.', 'danger');
             }
 
             return formObj;
         }
 
+        // Campos obligatorios por sección (mismos criterios que las etiquetas "Listo"/"Pendiente")
+        function validarFormularioCompleto() {
+            const valor = (id) => (document.getElementById(id)?.value || '').trim();
+            const secciones = [
+                { card: 'card-step-1', titulo: '1. Antecedentes de la Faena', campos: [
+                    ['area_relacionamiento', 'Área Relacionamiento'], ['estados_proyecto', 'Faena / Estado'], ['fecha_inicio', 'Fecha inicio'],
+                    ['num_trabajadores', 'N° Trabajadores'], ['num_vehiculos', 'N° Vehículos'], ['fundo_instalacion', 'Fundo o Instalación']] },
+                { card: 'card-step-2', titulo: '2. Antecedentes de EESS', campos: [
+                    ['supervisor', 'Supervisor'], ['jefe_faena', 'Jefe de Faena'], ['clave_jefe_faena', 'Clave Jefe de Faena'],
+                    ['asesor_prev_riesgos', 'Asesor Prev. Riesgos'], ['numero_jefe_faena', 'Teléfono Jefe de Faena']] },
+                { card: 'card-step-3', titulo: '3. Participantes', lista: () => participantesList.length > 0, focus: 'nombre_participante', faltaLista: 'al menos un participante' },
+                { card: 'card-step-4', titulo: '4. Coordenadas Caso Rescate', campos: [['latitud', 'Latitud'], ['longitud', 'Longitud']] },
+                { card: 'card-step-5', titulo: '5. Peligros y Controles', lista: () => peligrosList.length > 0, focus: 'peligro_descripcion', faltaLista: 'al menos un peligro' },
+                { card: 'card-step-6', titulo: '6. Firmas', campos: [['firma_jefe_faena_input', 'Firma del Jefe de Faena']] }
+            ];
+
+            const faltantes = [];
+            for (const s of secciones) {
+                if (s.campos) {
+                    const vacios = s.campos.filter(([id]) => !valor(id));
+                    if (telefonoInvalido(s, vacios)) vacios.push(['numero_jefe_faena', 'Teléfono Jefe de Faena (8 a 15 dígitos)']);
+                    if (vacios.length > 0) faltantes.push({ card: s.card, titulo: s.titulo, detalle: vacios.map(v => v[1]), focus: vacios[0][0] });
+                } else if (!s.lista()) {
+                    faltantes.push({ card: s.card, titulo: s.titulo, detalle: [s.faltaLista], focus: s.focus });
+                }
+            }
+            return faltantes;
+
+            function telefonoInvalido(s, vacios) {
+                if (s.card !== 'card-step-2' || vacios.some(v => v[0] === 'numero_jefe_faena')) return false;
+                return !/^[0-9]{8,15}$/.test(valor('numero_jefe_faena'));
+            }
+        }
+
+        function irASeccionIncompleta(faltante) {
+            const card = document.getElementById(faltante.card);
+            if (!card) return;
+            if (!card.classList.contains('active')) toggleAccordion(faltante.card);
+            setTimeout(() => {
+                card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                const el = document.getElementById(faltante.focus);
+                if (el && el.type !== 'hidden') el.focus({ preventScroll: true });
+            }, 350);
+        }
+
         async function guardarFinalizado() {
+            const faltantes = validarFormularioCompleto();
+            if (faltantes.length > 0) {
+                const lista = faltantes.map(f => `• ${f.titulo}: ${f.detalle.join(', ')}`).join('\n');
+                const guardarIgual = await mostrarConfirmacionCustom({
+                    title: '⚠️ Faltan datos obligatorios',
+                    message: `${lista}\n\n¿Desea completarlos ahora o guardar y enviar el formulario igual?`,
+                    confirmText: 'Guardar y enviar igual',
+                    cancelText: 'Completar ahora',
+                    type: 'warning'
+                });
+                if (!guardarIgual) {
+                    irASeccionIncompleta(faltantes[0]);
+                    return null;
+                }
+            }
+
             const formObj = await guardarBorrador();
             
             // Check connectivity before attempting sync
             const isOnline = navigator.onLine;
             if (!isOnline) {
-                showToast('📱 Guardado localmente. Se sincronizará cuando tengas conexión a Internet.', 'info');
+                showToast('📱 Guardado en el equipo. Se enviará automáticamente cuando haya señal.', 'info');
                 return formObj;
             }
             
@@ -2966,6 +3052,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // --- Expose to global scope for inline HTML handlers ---
 window.configurarServidorUrl = configurarServidorUrl;
+window.exportarRespaldo = exportarRespaldo;
+window.abrirRestaurarRespaldo = abrirRestaurarRespaldo;
+window.restaurarRespaldo = restaurarRespaldo;
+window.nuevoIrfEnFundo = nuevoIrfEnFundo;
+window.olvidarFundoVisitado = olvidarFundoVisitado;
 window.actualizarTablaPeligros = actualizarTablaPeligros;
 window.toggleSosModal = toggleSosModal;
 window.toggleAccordion = toggleAccordion;
@@ -2975,7 +3066,6 @@ window.initPeligroSelect = initPeligroSelect;
 window.exportarAPdf = exportarAPdf;
 window.initAndroidApp = initAndroidApp;
 window.getRiskLevel = getRiskLevel;
-window.checkConnectionStatus = checkConnectionStatus;
 window.initFundoAutocomplete = initFundoAutocomplete;
 window.renderSavedForms = renderSavedForms;
 window.toggleTheme = toggleTheme;
@@ -3054,8 +3144,8 @@ async function exportarTablaCSV() {
         { header: 'Fundo / Instalación', key: 'fundo', width: 25 },
         { header: 'Faena', key: 'faena', width: 22 },
         { header: 'Fecha', key: 'fecha', width: 15 },
+        { header: 'Jefe de Faena', key: 'jefe_faena', width: 28 },
         { header: 'Supervisor', key: 'supervisor', width: 28 },
-        { header: 'Prevencionista', key: 'prevencionista', width: 28 },
         { header: 'Participantes', key: 'participantes', width: 14 },
         { header: 'Peligros', key: 'peligros', width: 12 },
         { header: 'Versión', key: 'version', width: 10 },
@@ -3086,8 +3176,8 @@ async function exportarTablaCSV() {
             fundo: item.fundo_instalacion || 'Sin fundo',
             faena: item.faena || 'Sin faena',
             fecha: item.fecha_inicio || '',
+            jefe_faena: getJefeFaena(item),
             supervisor: item.supervisor || '',
-            prevencionista: item.asesor_prevencion || '',
             participantes: item.cant_participantes || 0,
             peligros: item.cant_peligros || 0,
             version: item.version || 1,
