@@ -2119,7 +2119,8 @@ Escriba "produccion" para volver a producción.`,
                 renderFundosVisitados();
                 showToast(`📍 ${cambios} fundo(s) cargado(s) para ${getUsuario()}.`, 'success');
             } else if (!silencioso) {
-                showToast('Ya tiene todos sus fundos al día.', 'info');
+                const sinFundos = Object.keys(getFundosVisitados()).length === 0;
+                showToast(sinFundos ? 'No se encontraron fundos donde figure como jefe de faena.' : 'Ya tiene todos sus fundos al día.', 'info');
             }
         }
 

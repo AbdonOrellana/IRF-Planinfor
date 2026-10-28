@@ -1089,8 +1089,8 @@
     <div id="usuario-overlay" class="custom-dialog-overlay" style="display: none;">
         <div class="custom-dialog-card">
             <div class="custom-dialog-titles" style="margin-bottom: 14px;">
-                <h3 class="custom-dialog-title">👷 ¿Quién usará este equipo?</h3>
-                <p class="custom-dialog-message">Elija su nombre para cargar los fundos donde usted figura como jefe de faena.</p>
+                <h3 id="usuario-titulo" class="custom-dialog-title">👷 ¿Quién usará este equipo?</h3>
+                <p id="usuario-mensaje" class="custom-dialog-message">Elija su nombre para cargar los fundos donde usted figura como jefe de faena.</p>
             </div>
             <div class="custom-dialog-input-wrap">
                 <input type="text" id="usuario-buscar" class="custom-dialog-input" placeholder="Escriba para buscar su nombre..." autocomplete="off">
@@ -1098,6 +1098,7 @@
             <div id="usuario-lista" style="max-height: 240px; overflow-y: auto; margin-top: 8px;"></div>
             <div class="custom-dialog-actions">
                 <button type="button" id="usuario-omitir" class="custom-btn-secondary">Ahora no</button>
+                <button type="button" id="usuario-otros" class="custom-btn-primary">➕ Agregar otro usuario</button>
             </div>
         </div>
     </div>

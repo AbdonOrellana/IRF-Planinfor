@@ -2828,8 +2828,8 @@ body.prevencionista-mode {
     border-radius: 8px;
     font-size: 14px;
     outline: none;
-    background: var(--bg-body, #f8fafc);
-    color: var(--text-heading, #0f172a);
+    background: var(--bg-input, #f8fafc);
+    color: var(--text-main, #0f172a);
     transition: border-color 0.2s ease;
     box-sizing: border-box;
 }

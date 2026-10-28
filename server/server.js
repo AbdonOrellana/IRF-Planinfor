@@ -4,7 +4,7 @@ import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { initDb, saveFormRecord, getAllFormRecords, getFormRecordById, deleteFormRecord, getFundosDeJefe, findUser, saveUser, guardarFoto, fotosFaltantes } from './db.js';
+import { initDb, saveFormRecord, getAllFormRecords, getFormRecordById, deleteFormRecord, getFundosDeJefe, getJefesDeFaena, findUser, saveUser, guardarFoto, fotosFaltantes } from './db.js';
 import { hashFoto, esHashValido, MAX_FOTO_CHARS } from './fotos.js';
 import { hashPassword, verifyPassword, signToken, requireAuth } from './auth.js';
 
@@ -151,6 +151,16 @@ app.post('/api/sync-batch', async (req, res) => {
     } catch (err) {
         console.error('Error en sincronización por lote:', err);
         res.status(500).json({ error: 'Error procesando lote de sincronización', details: err.message });
+    }
+});
+
+// Nombres de los jefes de faena que ya tienen IRF (lista para elegir el usuario de un equipo)
+app.get('/api/jefes-faena', async (req, res) => {
+    try {
+        res.json({ success: true, jefes: await getJefesDeFaena() });
+    } catch (err) {
+        console.error('Error obteniendo jefes de faena:', err);
+        res.status(500).json({ error: 'Error al consultar los jefes de faena' });
     }
 });
 

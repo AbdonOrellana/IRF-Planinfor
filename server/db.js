@@ -391,6 +391,43 @@ export async function getAllFormRecords() {
 const normalizarTexto = (t) => String(t || '').trim().replace(/\s+/g, ' ').toLowerCase();
 
 /**
+ * Nombres de quienes figuran como jefe de faena en algún IRF (para elegir el usuario de un equipo).
+ * Un mismo nombre escrito con distinto uso de mayúsculas o espacios cuenta como uno solo.
+ */
+export async function getJefesDeFaena() {
+    let filas;
+    if (isPgConnected && pool) {
+        const res = await pool.query(`
+            SELECT TRIM(data_payload->'inputs'->>'jefe_faena') AS jefe, COUNT(*)::int AS cantidad
+            FROM formularios_irf
+            WHERE is_deleted IS NOT TRUE AND TRIM(COALESCE(data_payload->'inputs'->>'jefe_faena', '')) <> ''
+            GROUP BY 1
+        `);
+        filas = res.rows;
+    } else {
+        const cuenta = new Map();
+        for (const f of getJsonDb().filter(f => !f.is_deleted)) {
+            const jefe = String(f.data_payload?.inputs?.jefe_faena || '').trim();
+            if (jefe) cuenta.set(jefe, (cuenta.get(jefe) || 0) + 1);
+        }
+        filas = [...cuenta].map(([jefe, cantidad]) => ({ jefe, cantidad }));
+    }
+
+    // Se muestra la forma más usada de cada nombre
+    const porNombre = new Map();
+    for (const { jefe, cantidad } of filas) {
+        const clave = normalizarTexto(jefe);
+        const actual = porNombre.get(clave);
+        if (!actual) porNombre.set(clave, { jefe, cantidad, total: cantidad });
+        else {
+            actual.total += cantidad;
+            if (cantidad > actual.cantidad) { actual.jefe = jefe; actual.cantidad = cantidad; }
+        }
+    }
+    return [...porNombre.values()].map(x => x.jefe).sort((a, b) => a.localeCompare(b, 'es'));
+}
+
+/**
  * Fundos donde la persona figura como jefe de faena: el IRF más reciente de cada fundo, sin fotos ni firmas.
  * Con esto la app precarga en un equipo solo los fundos de quien lo usa.
  */

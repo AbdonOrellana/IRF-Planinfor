@@ -127,8 +127,28 @@ export async function migrarFundosVisitados() {
     }
 }
 
+// Persona para la que se armó la lista actual de fundos: si cambia, la lista se reemplaza por la de la nueva persona
+const FUNDOS_USUARIO_KEY = 'irf_fundos_usuario';
+
+// Suma los fundos de los formularios guardados en este equipo donde la persona figura como jefe de faena
+async function registrarFormulariosDeJefe(jefe) {
+    const buscado = normalizarFundo(jefe);
+    const list = getSavedFormsList().slice().sort((a, b) => (a.savedAt || 0) - (b.savedAt || 0));
+    for (const item of list) {
+        try {
+            const formObj = await getForm(item.id);
+            if (formObj && formObj.data && normalizarFundo(formObj.data.inputs && formObj.data.inputs.jefe_faena) === buscado) {
+                registrarFundoVisitado(formObj.data, formObj.savedAt);
+            }
+        } catch (e) {
+            console.warn('No se pudo leer el formulario ' + item.id, e);
+        }
+    }
+}
+
 // Descarga del servidor los fundos donde la persona figura como jefe de faena y los suma a los de este equipo
-// (sin pisar datos más recientes). Devuelve cuántos fundos nuevos o actualizados se cargaron.
+// (sin pisar datos más recientes). Si el equipo lo usaba otra persona, la lista se reemplaza por la de esta persona
+// (sus fundos del servidor y de los formularios guardados aquí). Devuelve cuántos fundos se cargaron o actualizaron.
 export async function descargarFundosDeJefe(jefe) {
     if (!jefe) return 0;
     const response = await tryFetchWithFallback('/api/mis-fundos?jefe=' + encodeURIComponent(jefe));
@@ -141,12 +161,25 @@ export async function descargarFundosDeJefe(jefe) {
         throw new Error('El servidor aún no tiene la función de fundos por jefe de faena (falta actualizarlo)');
     }
 
+    // Solo se reemplaza una vez que el servidor respondió: sin señal queda la lista anterior y se reintenta al abrir la app
+    const anterior = localStorage.getItem(FUNDOS_USUARIO_KEY);
+    const cambioDeUsuario = !!anterior && normalizarFundo(anterior) !== normalizarFundo(jefe);
+    if (cambioDeUsuario) {
+        setFundosVisitados({});
+        await registrarFormulariosDeJefe(jefe);
+    }
+    localStorage.setItem(FUNDOS_USUARIO_KEY, jefe);
+
     let cambios = 0;
     for (const item of Array.isArray(fundos) ? fundos : []) {
         const antes = getFundoVisitado(item.fundo);
         registrarFundoVisitado(item.data, item.updatedAt, item.primeraFecha);
         const despues = getFundoVisitado(item.fundo);
         if (despues && (!antes || antes.updatedAt !== despues.updatedAt)) cambios++;
+    }
+    if (cambioDeUsuario) {
+        window.dispatchEvent(new Event('irf:fundos-actualizados'));
+        return Object.keys(getFundosVisitados()).length;
     }
     return cambios;
 }
