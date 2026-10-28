@@ -1361,6 +1361,139 @@ body.prevencionista-mode {
     display: none;
 }
 
+/* Estilos de la réplica del PDF (impresión en la app y descarga en la web) */
+.pdf-replica-container {
+    font-family: "Times New Roman", Times, serif;
+    width: 100%;
+    color: #000;
+    background: #fff;
+}
+
+.pdf-info-table, .pdf-hazards-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 10px;
+}
+
+.pdf-info-table td, .pdf-hazards-table td, .pdf-hazards-table th {
+    border: 0.5px solid #000;
+    padding: 4px;
+    font-size: 10px;
+    vertical-align: middle;
+}
+
+.pdf-cell-title {
+    font-weight: bold;
+    background-color: #f0f0f0;
+}
+
+.pdf-hazards-table th {
+    background-color: #f0f0f0;
+    font-weight: bold;
+    text-align: center;
+    font-size: 9px;
+}
+
+.pdf-hazards-table td {
+    font-size: 8px;
+    text-align: center;
+}
+
+/* Anchos fijos (ver colgroup en exportarAPdf): la tabla nunca pasa del ancho de la hoja
+   y el texto largo se parte en vez de ensanchar la columna */
+.pdf-hazards-table {
+    table-layout: fixed;
+}
+
+.pdf-hazards-table td, .pdf-hazards-table th {
+    padding: 2px 3px;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.pdf-hazards-table th {
+    font-size: 6.5px;
+    padding: 2px 1px;
+}
+
+.pdf-hazards-table thead {
+    display: table-header-group;
+}
+
+.pdf-hazards-table tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
+}
+
+.pdf-hazards-table .pdf-col-controles {
+    text-align: left;
+    font-size: 7px;
+    line-height: 1.2;
+}
+
+.pdf-hazards-table .pdf-col-controles ul {
+    margin: 0;
+    padding-left: 9px;
+}
+
+.pdf-hazards-table .pdf-col-controles li {
+    margin-bottom: 1px;
+}
+
+.pdf-hazards-table .pdf-riesgo {
+    display: inline-block;
+    min-width: 12px;
+    padding: 1px 3px;
+    border-radius: 3px;
+    font-size: 8px;
+    font-weight: bold;
+}
+
+.anexo-fotografico {
+    page-break-before: always;
+    padding-top: 20px;
+}
+.anexo-fotografico h2 {
+    text-align: center;
+    margin-bottom: 20px;
+    color: #000;
+    font-family: Arial, sans-serif;
+}
+.anexo-item {
+    margin-bottom: 30px;
+    page-break-inside: avoid;
+    border: 1px solid #ccc;
+    padding: 15px;
+}
+.anexo-item img {
+    max-width: 100%;
+    max-height: 400px;
+    display: block;
+    margin: 10px auto;
+    border: 1px solid #eee;
+}
+.anexo-item p {
+    font-family: Arial, sans-serif;
+    color: #333;
+    margin: 5px 0;
+    font-size: 14px;
+}
+
+/* Al descargar el PDF en la web los bordes se dibujan aparte (ver pdfDescarga.js): Chrome no permite
+   bordes menores a 1 px en pantalla, y así quedan más finos */
+.pdf-sin-bordes, .pdf-sin-bordes * {
+    border-color: transparent !important;
+}
+
+/* Para descargar el PDF en la web: la réplica se arma fuera de pantalla con el ancho útil de una hoja A4 (190 mm) */
+.pdf-replica-container.pdf-capture {
+    display: block;
+    position: absolute;
+    left: -10000px;
+    top: 0;
+    width: 718px;
+}
+
 /* HIGH FIDELITY PRINT RENDER */
 @media (min-width: 768px) {
     .toast-container {
@@ -1403,43 +1536,9 @@ body.prevencionista-mode {
         display: none !important;
     }
 
-    /* PDF 1:1 REPLICA STYLES */
+    /* Los estilos de la réplica del PDF están más arriba (se usan al imprimir y al descargar el PDF) */
     .pdf-replica-container {
         display: block !important;
-        font-family: "Times New Roman", Times, serif;
-        width: 100%;
-        color: #000;
-        background: #fff;
-    }
-
-    .pdf-info-table, .pdf-hazards-table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-bottom: 10px;
-    }
-
-    .pdf-info-table td, .pdf-hazards-table td, .pdf-hazards-table th {
-        border: 1px solid #000;
-        padding: 4px;
-        font-size: 10px;
-        vertical-align: middle;
-    }
-
-    .pdf-cell-title {
-        font-weight: bold;
-        background-color: #f0f0f0;
-    }
-
-    .pdf-hazards-table th {
-        background-color: #f0f0f0;
-        font-weight: bold;
-        text-align: center;
-        font-size: 9px;
-    }
-
-    .pdf-hazards-table td {
-        font-size: 9px;
-        text-align: center;
     }
 
     /* Force Accordion sections to show completely on print */
@@ -1453,36 +1552,6 @@ body.prevencionista-mode {
     /* Avoid page breaks inside form groups */
     .form-group, .signature-box, .peligro-card {
         page-break-inside: avoid;
-    }
-
-    .anexo-fotografico {
-        page-break-before: always;
-        padding-top: 20px;
-    }
-    .anexo-fotografico h2 {
-        text-align: center;
-        margin-bottom: 20px;
-        color: #000;
-        font-family: Arial, sans-serif;
-    }
-    .anexo-item {
-        margin-bottom: 30px;
-        page-break-inside: avoid;
-        border: 1px solid #ccc;
-        padding: 15px;
-    }
-    .anexo-item img {
-        max-width: 100%;
-        max-height: 400px;
-        display: block;
-        margin: 10px auto;
-        border: 1px solid #eee;
-    }
-    .anexo-item p {
-        font-family: Arial, sans-serif;
-        color: #333;
-        margin: 5px 0;
-        font-size: 14px;
     }
 
     .accordion-content {

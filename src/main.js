@@ -18,6 +18,7 @@ import {
 } from './fundosVisitados.js';
 import { getUsuario, usuarioOmitido, elegirUsuario, cargarFundosDelUsuario } from './usuario.js';
 import { VERSION_APP, buscarActualizacion, abrirDescargaApp } from './actualizacion.js';
+import { descargarReplicaComoPdf } from './pdfDescarga.js';
 
 window.mostrarConfirmacionCustom = mostrarConfirmacionCustom;
 window.mostrarPromptCustom = mostrarPromptCustom;
@@ -1024,6 +1025,23 @@ function initFundoAutocomplete() {
             return { text: 'PÉRDIDA TOTAL', class: 'risk-disaster' };
         }
 
+        // FIRSSO inicial = IF + IS. Residual = (IF + IS) - IC, nunca menor que 0.
+        // Siempre se calculan desde los índices (no se confía en el valor guardado) para que lo impreso cuadre.
+        function calcularFirssoInicial(ifVal, isVal) {
+            return (parseInt(ifVal) || 0) + (parseInt(isVal) || 0);
+        }
+
+        function calcularFirssoResidual(ifVal, isVal, icVal) {
+            return Math.max(0, (parseInt(ifVal) || 0) + (parseInt(isVal) || 0) - (parseInt(icVal) || 0));
+        }
+
+        function firssoDePeligro(p) {
+            return {
+                ini: calcularFirssoInicial(p.ini_if, p.ini_is),
+                res: calcularFirssoResidual(p.res_if, p.res_is, p.res_ic)
+            };
+        }
+
         function updateFirssoInicialUI() {
             const ifInput = document.getElementById('peligro_ini_if');
             const isInput = document.getElementById('peligro_ini_is');
@@ -1046,7 +1064,7 @@ function initFundoAutocomplete() {
                 }
             }
 
-            const firsso = ifVal + isVal;
+            const firsso = calcularFirssoInicial(ifVal, isVal);
 
             document.getElementById('val-ini-firsso').innerText = firsso;
             document.getElementById('peligro_ini_firsso').value = firsso;
@@ -1067,7 +1085,7 @@ function initFundoAutocomplete() {
             const icVal = parseInt(document.getElementById('peligro_res_ic').value) || 0;
             const ifVal = parseInt(document.getElementById('peligro_res_if').value) || 0;
             const isVal = parseInt(document.getElementById('peligro_res_is').value) || 0;
-            const firsso = (ifVal + isVal) - icVal;
+            const firsso = calcularFirssoResidual(ifVal, isVal, icVal);
 
             document.getElementById('val-res-firsso').innerText = firsso;
             document.getElementById('peligro_res_firsso').value = firsso;
@@ -1142,12 +1160,12 @@ function initFundoAutocomplete() {
                     expuestos: expuestosVal,
                     ini_if: parseInt(iniIfInput.value) || 0,
                     ini_is: parseInt(iniIsInput.value) || 0,
-                    ini_firsso: parseInt(iniFirssoInput.value) || 0,
+                    ini_firsso: calcularFirssoInicial(iniIfInput.value, iniIsInput.value),
                     controles: contInput.value.trim(),
                     res_ic: parseInt(resIcInput.value) || 0,
                     res_if: parseInt(resIfInput.value) || 0,
                     res_is: parseInt(resIsInput.value) || 0,
-                    res_firsso: parseInt(resFirssoInput.value) || 0,
+                    res_firsso: calcularFirssoResidual(resIfInput.value, resIsInput.value, resIcInput.value),
                     responsables: respInput.value.trim(),
                     estado: estSelect.value,
                     control_fecha: ctrlFechaInput.value,
@@ -1238,8 +1256,9 @@ function initFundoAutocomplete() {
                 let desktopHtml = '';
 
                 peligrosList.forEach((p, index) => {
-                    const iniLvl = getRiskLevel(p.ini_firsso);
-                    const resLvl = getRiskLevel(p.res_firsso);
+                    const firsso = firssoDePeligro(p);
+                    const iniLvl = getRiskLevel(firsso.ini);
+                    const resLvl = getRiskLevel(firsso.res);
                     const stateText = p.estado === 'I' ? 'Implementado' : 'Pendiente';
                     const stateClass = p.estado === 'I' ? 'risk-low' : 'risk-high';
 
@@ -1254,8 +1273,8 @@ function initFundoAutocomplete() {
                             ${p.fotoBase64 ? `<img src="${p.fotoBase64}" class="anexo-img-mobile" alt="Evidencia">` : ''}
                             <div style="font-size: 12px; color: var(--text-muted);"><strong>Expuestos:</strong> ${escapeHTML(p.expuestos || 'Ninguno')}</div>
                             <div class="hazard-card-firsso-block">
-                                <span class="status-badge ${iniLvl.class}">Inicial: ${p.ini_firsso}</span>
-                                <span class="status-badge ${resLvl.class}">Residual: ${p.res_firsso}</span>
+                                <span class="status-badge ${iniLvl.class}">Inicial: ${firsso.ini}</span>
+                                <span class="status-badge ${resLvl.class}">Residual: ${firsso.res}</span>
                             </div>
                             ${p.controles ? `<div class="hazard-card-controls"><strong>Mitigación:</strong> ${escapeHTML(p.controles)}</div>` : ''}
                             <div class="hazard-card-row" style="margin-top: 4px; align-items: center;">
@@ -1284,14 +1303,14 @@ function initFundoAutocomplete() {
                             <td style="text-align: center;">${p.ini_if}</td>
                             <td style="text-align: center;">${p.ini_is}</td>
                             <td class="tbl-firsso-cell">
-                                <span class="risk-badge ${iniLvl.class}" style="font-size: 10px; padding: 2px 6px;">${p.ini_firsso}</span>
+                                <span class="risk-badge ${iniLvl.class}" style="font-size: 10px; padding: 2px 6px;">${firsso.ini}</span>
                             </td>
                             <td style="white-space: normal; min-width: 150px;">${escapeHTML(p.controles)}</td>
                             <td style="text-align: center;">${p.res_ic}</td>
                             <td style="text-align: center;">${p.res_if}</td>
                             <td style="text-align: center;">${p.res_is}</td>
                             <td class="tbl-firsso-cell">
-                                <span class="risk-badge ${resLvl.class}" style="font-size: 10px; padding: 2px 6px;">${p.res_firsso}</span>
+                                <span class="risk-badge ${resLvl.class}" style="font-size: 10px; padding: 2px 6px;">${firsso.res}</span>
                             </td>
                             <td>${escapeHTML(p.responsables)}</td>
                             <td style="text-align: center;">
@@ -1422,10 +1441,14 @@ function initFundoAutocomplete() {
             // Generate HTML for hazards
             let hazardsHtml = '';
 
-            function getRiskStyle(lvl) {
-                if (lvl === 'Bajo') return 'background-color: #dcfce7; color: #166534; border: 1px solid #15803d;';
-                if (lvl === 'Medio') return 'background-color: #fef3c7; color: #92400e; border: 1px solid #d97706;';
-                if (lvl === 'Alto') return 'background-color: #fee2e2; color: #991b1b; border: 1px solid #dc2626;';
+            // Color del FIRSSO según su nivel (ver getRiskLevel). Va en un recuadro dentro de la celda
+            // para no tapar las líneas de la tabla.
+            function getRiskStyle(firsso) {
+                const clase = getRiskLevel(firsso).class;
+                if (clase === 'risk-low') return 'background-color: #dcfce7; color: #166534; border: 1px solid #15803d;';
+                if (clase === 'risk-medium') return 'background-color: #fef3c7; color: #92400e; border: 1px solid #d97706;';
+                if (clase === 'risk-high') return 'background-color: #ffedd5; color: #9a3412; border: 1px solid #ea580c;';
+                if (clase === 'risk-critical') return 'background-color: #fee2e2; color: #991b1b; border: 1px solid #dc2626;';
                 return 'background-color: #fca5a5; color: #7f1d1d; border: 1px solid #b91c1c;';
             };
 
@@ -1438,27 +1461,26 @@ function initFundoAutocomplete() {
                 if (!str) return '';
                 const lines = str.split('\n').map(l => l.trim()).filter(l => l);
                 if (lines.length <= 1) return formatMultilineText(str);
-                return `<ul style="margin: 0; padding-left: 12px; margin-top: 2px; margin-bottom: 2px;">` + 
-                       lines.map(l => `<li style="margin-bottom: 2px;">${escapeHTML(l.replace(/^[-*•]\s*/, ''))}</li>`).join('') + 
-                       `</ul>`;
+                return `<ul>` + lines.map(l => `<li>${escapeHTML(l.replace(/^[-*•]\s*/, ''))}</li>`).join('') + `</ul>`;
             }
 
             peligrosList.forEach(p => {
+                const firsso = firssoDePeligro(p);
                 hazardsHtml += `
                     <tr>
                         <td>${formatDate(p.fecha)}</td>
-                        <td style="text-align: left; max-width: 150px; word-wrap: break-word;">${formatMultilineText(p.descripcion)}</td>
+                        <td style="text-align: left;">${formatMultilineText(p.descripcion)}</td>
                         <td>${escapeHTML(p.localizacion)}</td>
                         <td>${escapeHTML(p.expuestos)}</td>
-                        <td>${p.ini_if}</td>
-                        <td>${p.ini_is}</td>
+                        <td>${p.ini_if || 0}</td>
+                        <td>${p.ini_is || 0}</td>
                         <td>0</td>
-                        <td style="${getRiskStyle(p.ini_firsso)} font-weight: bold; font-size: 7px; padding: 1px 3px; border-radius: 3px;">${p.ini_firsso}</td>
-                        <td style="text-align: left; max-width: 150px; word-wrap: break-word; padding: 4px;">${formatListText(p.controles)}</td>
-                        <td>0</td>
-                        <td>${p.res_if}</td>
-                        <td>${p.res_is}</td>
-                        <td style="${getRiskStyle(p.res_firsso)} font-weight: bold; font-size: 7px; padding: 1px 3px; border-radius: 3px;">${p.res_firsso}</td>
+                        <td><span class="pdf-riesgo" style="${getRiskStyle(firsso.ini)}">${firsso.ini}</span></td>
+                        <td class="pdf-col-controles">${formatListText(p.controles)}</td>
+                        <td>${p.res_if || 0}</td>
+                        <td>${p.res_is || 0}</td>
+                        <td>${p.res_ic || 0}</td>
+                        <td><span class="pdf-riesgo" style="${getRiskStyle(firsso.res)}">${firsso.res}</span></td>
                         <td>${escapeHTML(p.responsables)}</td>
                         <td style="font-weight: bold;">${p.estado}</td>
                         <td>${formatDate(p.control_fecha)}</td>
@@ -1530,7 +1552,7 @@ function initFundoAutocomplete() {
                     </tr>
                 </table>
 
-                <div style="border-bottom: 2px solid #000; font-weight: bold; font-size: 12px; margin-bottom: 10px; padding-bottom: 3px;">
+                <div style="border-bottom: 1px solid #000; font-weight: bold; font-size: 12px; margin-bottom: 10px; padding-bottom: 3px;">
                     INTERVENCIÓN Y RIESGOS DE FAENAS (IRF)
                     <span style="float: right;">Hoja N°1</span>
                 </div>
@@ -1595,19 +1617,26 @@ function initFundoAutocomplete() {
                 </div>
 
                 <table class="pdf-hazards-table">
+                    <colgroup>
+                        <col style="width: 7%;"><col style="width: 10.5%;"><col style="width: 7%;"><col style="width: 7.5%;">
+                        <col style="width: 2.5%;"><col style="width: 2.5%;"><col style="width: 2.5%;"><col style="width: 4.5%;">
+                        <col style="width: 18%;">
+                        <col style="width: 2.5%;"><col style="width: 2.5%;"><col style="width: 2.5%;"><col style="width: 4.5%;">
+                        <col style="width: 8.5%;"><col style="width: 5%;"><col style="width: 8%;"><col style="width: 4.5%;">
+                    </colgroup>
                     <thead>
                         <tr>
-                            <th rowspan="2" style="width: 6%;">FECHA</th>
+                            <th rowspan="2">FECHA</th>
                             <th rowspan="2">Descripción del Peligro (Acción o Condición Insegura)</th>
-                            <th rowspan="2" style="width: 10%;">Localización del Peligro (Fundo/ Lugar)</th>
-                            <th rowspan="2" style="width: 10%;">EXPUESTOS (Persona/Equipo en contacto)</th>
+                            <th rowspan="2">Localización del Peligro (Fundo/ Lugar)</th>
+                            <th rowspan="2">EXPUESTOS (Persona / Equipo en contacto)</th>
                             <th colspan="4" style="font-size: 7px; padding: 2px;">EVALUACIÓN INICIAL</th>
                             <th rowspan="2">TIPO DE CONTROLES</th>
                             <th colspan="4" style="font-size: 7px; padding: 2px;">EVALUACIÓN RESIDUAL</th>
-                            <th rowspan="2" style="width: 10%;">RESPONSABLES</th>
-                            <th rowspan="2" style="width: 8%;">ESTADO</th>
-                            <th rowspan="2" style="width: 8%;">FECHA<br>(implementación)</th>
-                            <th rowspan="2" style="width: 8%;">FIRMA SUP.</th>
+                            <th rowspan="2">RESPONSABLES</th>
+                            <th rowspan="2">ESTADO</th>
+                            <th rowspan="2">FECHA<br>(implementación)</th>
+                            <th rowspan="2">FIRMA SUP.</th>
                         </tr>
                         <tr>
                             <th>IF</th><th>IS</th><th>IC</th><th>FIRSSO</th>
@@ -1619,27 +1648,27 @@ function initFundoAutocomplete() {
                     </tbody>
                 </table>
 
-                <div style="margin-top: 8px; border: 1px solid #000; padding: 3px;">
-                    <div style="font-weight: bold; font-size: 8px; border-bottom: 1px solid #000; padding-bottom: 2px; margin-bottom: 3px;">
+                <div style="margin-top: 8px; border: 0.5px solid #000; padding: 3px;">
+                    <div style="font-weight: bold; font-size: 8px; border-bottom: 0.5px solid #000; padding-bottom: 2px; margin-bottom: 3px;">
                         V°B° INTERVENCIÓN Y CIERRE
                     </div>
                     <table style="width: 100%; border: none; font-size: 7px; margin: 0;">
                         <tr>
-                            <td style="width: 50%; border-right: 1px solid #000; border-top: none; border-bottom: none; border-left: none; padding-right: 10px; vertical-align: top;">
+                            <td style="width: 50%; border-right: 0.5px solid #000; border-top: none; border-bottom: none; border-left: none; padding-right: 10px; vertical-align: top;">
                                 <strong>V°B° INTERVENCIÓN</strong><br><br>
                                 <table style="width: 100%; border: none;">
                                     <tr>
                                         <td style="width: 33%; border: none; text-align: center; padding: 0;">
                                             ${sig0 ? `<img src="${sig0}" style="max-height: 30px; display: block; margin: 0 auto;"><div style="font-size: 6px; font-weight: normal; margin-top: 2px; color: #333;">${currentDateTimeStr}</div>` : '<div style="height: 30px;"></div>'}
-                                            <div style="border-top: 1px solid #000; padding-top: 1px; font-size: 7px;">JEFE DE FAENA</div>
+                                            <div style="border-top: 0.5px solid #000; padding-top: 1px; font-size: 7px;">JEFE DE FAENA</div>
                                         </td>
                                         <td style="width: 33%; border: none; text-align: center; padding: 0;">
                                             ${sig1 ? `<img src="${sig1}" style="max-height: 30px; display: block; margin: 0 auto;"><div style="font-size: 6px; font-weight: normal; margin-top: 2px; color: #333;">${currentDateTimeStr}</div>` : '<div style="height: 30px;"></div>'}
-                                            <div style="border-top: 1px solid #000; padding-top: 1px; font-size: 7px;">ASESOR PREV. EESS</div>
+                                            <div style="border-top: 0.5px solid #000; padding-top: 1px; font-size: 7px;">ASESOR PREV. EESS</div>
                                         </td>
                                         <td style="width: 33%; border: none; text-align: center; padding: 0;">
                                             ${sig2 ? `<img src="${sig2}" style="max-height: 30px; display: block; margin: 0 auto;"><div style="font-size: 6px; font-weight: normal; margin-top: 2px; color: #333;">${currentDateTimeStr}</div>` : '<div style="height: 30px;"></div>'}
-                                            <div style="border-top: 1px solid #000; padding-top: 1px; font-size: 7px;">SUPERVISIÓN EESS</div>
+                                            <div style="border-top: 0.5px solid #000; padding-top: 1px; font-size: 7px;">SUPERVISIÓN EESS</div>
                                         </td>
                                     </tr>
                                 </table>
@@ -1650,11 +1679,11 @@ function initFundoAutocomplete() {
                                     <tr>
                                         <td style="width: 50%; border: none; text-align: center; padding: 0;">
                                             ${sig3 ? `<img src="${sig3}" style="max-height: 30px; display: block; margin: 0 auto;"><div style="font-size: 6px; font-weight: normal; margin-top: 2px; color: #333;">${currentDateTimeStr}</div>` : '<div style="height: 30px;"></div>'}
-                                            <div style="border-top: 1px solid #000; padding-top: 1px; font-size: 7px;">ASESOR PREV. EESS</div>
+                                            <div style="border-top: 0.5px solid #000; padding-top: 1px; font-size: 7px;">ASESOR PREV. EESS</div>
                                         </td>
                                         <td style="width: 50%; border: none; text-align: center; padding: 0;">
                                             ${sig4 ? `<img src="${sig4}" style="max-height: 30px; display: block; margin: 0 auto;"><div style="font-size: 6px; font-weight: normal; margin-top: 2px; color: #333;">${currentDateTimeStr}</div>` : '<div style="height: 30px;"></div>'}
-                                            <div style="border-top: 1px solid #000; padding-top: 1px; font-size: 7px;">SUPERVISIÓN EESS</div>
+                                            <div style="border-top: 0.5px solid #000; padding-top: 1px; font-size: 7px;">SUPERVISIÓN EESS</div>
                                         </td>
                                     </tr>
                                 </table>
@@ -1671,6 +1700,21 @@ function initFundoAutocomplete() {
             `;
 
             document.body.appendChild(replica);
+
+            // En la web (panel del prevencionista) se descarga el archivo PDF; en la app Android se abre la impresión del equipo
+            const esAppNativa = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+            if (!esAppNativa) {
+                showToast('Generando PDF...', 'info');
+                const nombrePdf = `IRF_${(fundo || 'sin-fundo').replace(/[^\w\-]+/g, '_')}_${fechaInicio || new Date().toISOString().slice(0, 10)}.pdf`;
+                descargarReplicaComoPdf(replica, nombrePdf)
+                    .then(hojas => showToast(`✅ PDF descargado (${hojas} hoja${hojas > 1 ? 's' : ''}).`, 'success'))
+                    .catch(e => {
+                        console.error(e);
+                        showToast('❌ No se pudo generar el PDF: ' + (e.message || e), 'danger');
+                    })
+                    .finally(() => replica.remove());
+                return;
+            }
 
             showToast('Preparando impresión...', 'info');
 
