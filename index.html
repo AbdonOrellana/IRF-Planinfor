@@ -42,10 +42,13 @@
 
     <div class="form-container">
         <!-- Unified Header optimized for mobile screens -->
+        <div id="aviso-actualizacion" style="display:none; margin-bottom:12px; padding:12px 14px; background:rgba(245,158,11,0.12); border:1px solid rgba(245,158,11,0.5); border-radius:var(--radius-sm); font-size:13px; color:var(--text-main);"></div>
         <header class="app-header">
             <div class="brand-text">
                 <h1>MINGEO IRF - CONTROL DE RIESGOS</h1>
                 <span>Versión 17 - Faenas Especiales & Seguridad</span>
+                <button type="button" id="btn-usuario-header" onclick="cambiarUsuarioEquipo()" title="Cambiar la persona que usa este equipo"
+                    style="display:none; margin-top:6px; padding:5px 10px; font-size:12px; font-weight:600; background:none; color:var(--primary); border:1px solid var(--primary); border-radius:999px; cursor:pointer;"></button>
             </div>
             <div class="header-actions">
                 <button type="button" id="btn-logout" class="btn-circle" onclick="cerrarSesion()" title="Cerrar Sesión Prevencionista" style="display:none;">
@@ -131,6 +134,7 @@
                         <!-- Formularios renderizados dinámicamente aquí -->
                     </div>
                     <div style="font-size:12px; font-weight:800; color:var(--primary); text-transform:uppercase; margin:16px 0 8px;">📍 Fundos visitados</div>
+                    <div id="usuario-actual" style="display:none; align-items:center; justify-content:space-between; gap:8px; font-size:12px; margin-bottom:8px;"></div>
                     <div id="fundos-visitados-list" class="dashboard-container">
                         <!-- Fundos visitados renderizados dinámicamente aquí -->
                     </div>
@@ -262,6 +266,8 @@
                 </div>
                 <div class="accordion-content">
                     <div class="accordion-body">
+                        <button type="button" id="btn-usar-ultimo-equipo" class="btn-action-outline" onclick="usarUltimoEquipo()"
+                            style="display:none; padding:8px 12px; font-size:12px; margin-bottom:14px;">↺ Usar equipo del último IRF</button>
                         <div class="form-grid">
                             <div class="form-group">
                                 <label for="nombre_eess">Nombre EESS</label>
@@ -471,6 +477,11 @@
                                 <div class="form-group full-width">
                                     <label for="peligro_descripcion">Descripción del Peligro</label>
                                     <select id="peligro_descripcion"></select>
+                                </div>
+                                <div class="form-group full-width" id="peligro_otro_group" style="display:none;">
+                                    <label for="peligro_descripcion_otro">Describa el peligro (Otros)</label>
+                                    <input type="text" id="peligro_descripcion_otro"
+                                        placeholder="Escriba el peligro o condición...">
                                 </div>
                                 <div class="form-group full-width">
                                     <label>Equipos / Personas Expuestas</label>
@@ -1070,6 +1081,23 @@
             <div class="custom-dialog-actions">
                 <button type="button" id="custom-dialog-btn-cancel" class="custom-btn-secondary">Cancelar</button>
                 <button type="button" id="custom-dialog-btn-confirm" class="custom-btn-primary">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quién usa este equipo: define qué fundos se precargan (los del jefe de faena) -->
+    <div id="usuario-overlay" class="custom-dialog-overlay" style="display: none;">
+        <div class="custom-dialog-card">
+            <div class="custom-dialog-titles" style="margin-bottom: 14px;">
+                <h3 class="custom-dialog-title">👷 ¿Quién usará este equipo?</h3>
+                <p class="custom-dialog-message">Elija su nombre para cargar los fundos donde usted figura como jefe de faena.</p>
+            </div>
+            <div class="custom-dialog-input-wrap">
+                <input type="text" id="usuario-buscar" class="custom-dialog-input" placeholder="Escriba para buscar su nombre..." autocomplete="off">
+            </div>
+            <div id="usuario-lista" style="max-height: 240px; overflow-y: auto; margin-top: 8px;"></div>
+            <div class="custom-dialog-actions">
+                <button type="button" id="usuario-omitir" class="custom-btn-secondary">Ahora no</button>
             </div>
         </div>
     </div>

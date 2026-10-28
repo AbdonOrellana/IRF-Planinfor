@@ -22,6 +22,8 @@ export const trabajadoresMap = {
             "Luis Leonardo Hernández Ávila": "Técnico control terreno",
             "Iván Andrés Igor Rivera": "Ingeniero de programación cosecha y caminos",
             "José Ignacio Jara Cabezas": "Tipificador silvícola",
+            "Israel Llano": "Trazador de caminos",
+            "Luis Llanos": "Trazador de caminos",
             "Paula Andrea Martinez Correa": "Analista de información trazado de caminos",
             "Camila Eileen Martinez Saldías": "Analista de planificación silvícola",
             "Jonatan Sergio Martínez Zavalla": "Controlador calidad producción plantas",

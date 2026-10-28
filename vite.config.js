@@ -1,4 +1,7 @@
 import { defineConfig } from 'vite';
+import { readFileSync } from 'fs';
+
+const { version: VERSION_APP } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'));
 import { VitePWA } from 'vite-plugin-pwa';
 
 // En desarrollo, /api va al backend local (puerto 3000). Con `npm run dev:prod` va al servidor de producción,
@@ -6,6 +9,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 const API_PRODUCCION = 'https://services.planinfor.cl:8091';
 
 export default defineConfig(({ mode }) => ({
+  define: { __APP_VERSION__: JSON.stringify(VERSION_APP) },
   plugins: [
     VitePWA({
       registerType: 'autoUpdate',

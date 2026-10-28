@@ -4,7 +4,7 @@ import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { initDb, saveFormRecord, getAllFormRecords, getFormRecordById, deleteFormRecord, findUser, saveUser, guardarFoto, fotosFaltantes, getFundosVisitados } from './db.js';
+import { initDb, saveFormRecord, getAllFormRecords, getFormRecordById, deleteFormRecord, getFundosDeJefe, findUser, saveUser, guardarFoto, fotosFaltantes } from './db.js';
 import { hashFoto, esHashValido, MAX_FOTO_CHARS } from './fotos.js';
 import { hashPassword, verifyPassword, signToken, requireAuth } from './auth.js';
 
@@ -24,6 +24,32 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 if (fs.existsSync(distPath)) {
     app.use(express.static(distPath));
 }
+
+// Actualización de la app: el APK más reciente se deja en la carpeta "apk" del servidor con el nombre
+// IRF-Planinfor-<versión>.apk (ver README). La app consulta la versión y abre la descarga.
+const apkDir = path.join(__dirname, '..', 'apk');
+
+function apkMasReciente() {
+    if (!fs.existsSync(apkDir)) return null;
+    const cmp = (a, b) => { for (let i = 0; i < 3; i++) if (a[i] !== b[i]) return a[i] - b[i]; return 0; };
+    return fs.readdirSync(apkDir)
+        .map(nombre => ({ nombre, m: nombre.match(/^IRF-Planinfor-(\d+)\.(\d+)\.(\d+)\.apk$/) }))
+        .filter(x => x.m)
+        .map(x => ({ nombre: x.nombre, partes: x.m.slice(1).map(Number), version: x.m.slice(1).join('.') }))
+        .sort((a, b) => cmp(b.partes, a.partes))[0] || null;
+}
+
+app.get('/api/app-version', (req, res) => {
+    const apk = apkMasReciente();
+    res.json({ version: apk ? apk.version : null });
+});
+
+app.get('/api/app.apk', (req, res) => {
+    const apk = apkMasReciente();
+    if (!apk) return res.status(404).json({ error: 'No hay una versión de la app para descargar' });
+    res.type('application/vnd.android.package-archive');
+    res.download(path.join(apkDir, apk.nombre), apk.nombre);
+});
 
 // Health Check
 app.get('/api/health', (req, res) => {
@@ -86,16 +112,6 @@ app.post('/api/fotos', async (req, res) => {
     }
 });
 
-// Fundos visitados por todos los equipos (sin fotos, firmas ni nombres) para precargar IRF en terreno
-app.get('/api/fundos-visitados', async (req, res) => {
-    try {
-        res.json({ fundos: await getFundosVisitados() });
-    } catch (err) {
-        console.error('Error obteniendo fundos visitados:', err);
-        res.status(500).json({ error: 'Error obteniendo fundos visitados' });
-    }
-});
-
 // Sincronizar un formulario individual
 app.post('/api/sync', async (req, res) => {
     try {
@@ -135,6 +151,19 @@ app.post('/api/sync-batch', async (req, res) => {
     } catch (err) {
         console.error('Error en sincronización por lote:', err);
         res.status(500).json({ error: 'Error procesando lote de sincronización', details: err.message });
+    }
+});
+
+// Fundos de un jefe de faena (para precargarlos en su equipo). Solo entrega los fundos donde figura con su nombre.
+app.get('/api/mis-fundos', async (req, res) => {
+    try {
+        const jefe = String(req.query.jefe || '').trim();
+        if (!jefe) return res.status(400).json({ error: 'Falta el nombre del jefe de faena' });
+        const fundos = await getFundosDeJefe(jefe);
+        res.json({ success: true, count: fundos.length, fundos });
+    } catch (err) {
+        console.error('Error obteniendo fundos del jefe de faena:', err);
+        res.status(500).json({ error: 'Error al consultar los fundos' });
     }
 });
 

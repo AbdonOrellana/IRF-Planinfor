@@ -31,3 +31,6 @@ server/usuarios.json
 server/fotos_json/
 respaldos/
 
+
+# APK que se publica en el servidor para actualizar la app (ver README)
+apk/

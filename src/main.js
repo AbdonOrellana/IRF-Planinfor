@@ -14,8 +14,10 @@ import {
 } from './sync.js';
 import {
     normalizarFundo, getFundosVisitados, setFundosVisitados, getFundoVisitado, peligrosReutilizables,
-    registrarFundoVisitado, migrarFundosVisitados, descargarFundosCompartidos
+    registrarFundoVisitado, migrarFundosVisitados
 } from './fundosVisitados.js';
+import { getUsuario, usuarioOmitido, elegirUsuario, cargarFundosDelUsuario } from './usuario.js';
+import { VERSION_APP, buscarActualizacion, abrirDescargaApp } from './actualizacion.js';
 
 window.mostrarConfirmacionCustom = mostrarConfirmacionCustom;
 window.mostrarPromptCustom = mostrarPromptCustom;
@@ -139,6 +141,15 @@ function initFundoAutocomplete() {
             input.addEventListener('blur', mostrarAvisoFundoVisitado);
         }
 
+        const PELIGRO_OTROS = 'Otros';
+
+        // Muestra el campo para describir el peligro solo cuando está elegido "Otros"
+        function actualizarPeligroOtro() {
+            const grupo = document.getElementById('peligro_otro_group');
+            const select = document.getElementById('peligro_descripcion');
+            if (grupo && select) grupo.style.display = select.value === PELIGRO_OTROS ? '' : 'none';
+        }
+
         function initPeligroSelect() {
             const select = document.getElementById('peligro_descripcion');
             if (!select || typeof peligrosMap === 'undefined') return;
@@ -151,11 +162,17 @@ function initFundoAutocomplete() {
                 opt.text = key;
                 select.appendChild(opt);
             }
+            // "Otros" siempre va al final de la lista
+            const otros = document.createElement('option');
+            otros.value = PELIGRO_OTROS;
+            otros.text = PELIGRO_OTROS;
+            select.appendChild(otros);
 
             select.addEventListener('change', function () {
                 const container = document.getElementById('peligro_controles_container');
                 const hiddenInput = document.getElementById('peligro_controles');
-                
+                actualizarPeligroOtro();
+
                 const updateHiddenControles = () => {
                     if (!hiddenInput || !container) return;
                     const selected = Array.from(container.querySelectorAll('.chip-item.selected')).map(c => '\u2022 ' + c.dataset.value);
@@ -165,7 +182,22 @@ function initFundoAutocomplete() {
                 
                 if (container) {
                     container.innerHTML = '';
-                    if (this.value && peligrosMap[this.value]) {
+                    if (this.value === PELIGRO_OTROS) {
+                        // Sin medidas sugeridas: se escriben a mano, una por línea
+                        const texto = document.createElement('textarea');
+                        texto.rows = 3;
+                        texto.placeholder = 'Escriba las medidas de control, una por línea...';
+                        texto.style.width = '100%';
+                        texto.addEventListener('input', () => {
+                            if (hiddenInput) {
+                                hiddenInput.value = texto.value.split('\n').map(l => l.trim().replace(/^•\s*/, ''))
+                                    .filter(Boolean).map(l => '• ' + l).join('\n');
+                            }
+                            if (typeof checkStepCompletion === 'function') checkStepCompletion();
+                        });
+                        container.appendChild(texto);
+                        if (hiddenInput) hiddenInput.value = '';
+                    } else if (this.value && peligrosMap[this.value]) {
                         let items = peligrosMap[this.value].split(', ');
                         items.forEach(item => {
                             const chip = document.createElement('div');
@@ -362,12 +394,36 @@ function initFundoAutocomplete() {
             });
         }
 
+        // reset() o asignar .value no disparan "change", así que el texto visible del selector
+        // personalizado quedaba con el valor anterior. Llamar después de cambiar valores por código.
+        function refrescarSelectsPersonalizados() {
+            document.querySelectorAll('select[data-customized]').forEach(select => {
+                const span = select.parentNode.querySelector('.custom-select-trigger span');
+                const opt = select.options[select.selectedIndex];
+                if (span) span.innerText = opt ? opt.text : 'Seleccionar...';
+            });
+            actualizarPeligroOtro();
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             setTimeout(initCustomAutocomplete, 200);
             setTimeout(initFundoAutocomplete, 200);
             setTimeout(initPeligroSelect, 200);
             setTimeout(initCustomSelects, 250);
         });
+
+// Valores iniciales de los campos ocultos del formulario (firmas, foto pendiente, etc.).
+        // form.reset() no los restablece, así que se restauran a mano al crear un formulario nuevo.
+        const valoresInicialesOcultos = new Map(
+            [...document.querySelectorAll('#irf-form input[type="hidden"]')].map(el => [el, el.value])
+        );
+
+        function restablecerCamposOcultos() {
+            valoresInicialesOcultos.forEach((valor, el) => { el.value = valor; });
+            const fotoLabel = document.getElementById('peligro_foto_label');
+            if (fotoLabel) fotoLabel.innerText = 'Tomar Foto';
+            document.getElementById('peligro_foto_btn')?.classList.remove('file-selected');
+        }
 
 // Data arrays for dynamic entries
         let participantesList = [];
@@ -789,7 +845,8 @@ function initFundoAutocomplete() {
                     const jefe = document.getElementById('jefe_faena').value.trim();
                     const clave = document.getElementById('clave_jefe_faena').value.trim();
                     const prev = document.getElementById('asesor_prev_riesgos').value.trim();
-                    const tel = (document.getElementById('codigo_pais_jefe').value + ' ' + document.getElementById('numero_jefe_faena').value).trim();
+                    // Solo el número: el código de país (+56) siempre tiene valor y no cuenta como dato ingresado
+                    const tel = document.getElementById('numero_jefe_faena').value.trim();
 
                     isComplete = !!(sup && jefe && clave && prev && tel);
                     hasData = !!(sup || jefe || clave || prev || tel);
@@ -1041,7 +1098,9 @@ function initFundoAutocomplete() {
             const ctrlFechaInput = document.getElementById('peligro_control_fecha');
             const firmaInput = document.getElementById('peligro_firma_sup');
 
-            const descValue = descInput.value.trim();
+            const otroInput = document.getElementById('peligro_descripcion_otro');
+            const esOtros = descInput.value === PELIGRO_OTROS;
+            const descValue = (esOtros ? otroInput.value : descInput.value).trim();
             const locValue = locInput.value.trim();
 
             if (!fechaInput.value) {
@@ -1051,7 +1110,7 @@ function initFundoAutocomplete() {
             }
             if (!descValue) {
                 showToast('Por favor describa la condición de riesgo.', 'warning');
-                descInput.focus();
+                (esOtros ? otroInput : descInput).focus();
                 return;
             }
             if (!locValue) {
@@ -1101,6 +1160,7 @@ function initFundoAutocomplete() {
                 // Clean
                 fechaInput.value = '';
                 descInput.value = '';
+                otroInput.value = '';
                 locInput.value = '';
                 if (personaChk) personaChk.checked = false;
                 if (movilChk) movilChk.checked = false;
@@ -1132,6 +1192,7 @@ function initFundoAutocomplete() {
 
                 updateFirssoInicialUI();
                 updateFirssoResidualUI();
+                refrescarSelectsPersonalizados();
 
                 actualizarTablaPeligros();
                 showToast('Registro de peligro guardado.', 'success');
@@ -1685,6 +1746,8 @@ function initFundoAutocomplete() {
 
                 // Trigger completion check
                 if (typeof checkStepCompletion === 'function') checkStepCompletion();
+                // Los selectores personalizados se crean a los 250 ms: redibujarlos cuando ya existan
+                setTimeout(refrescarSelectsPersonalizados, 300);
 
                 showToast('Borrador recuperado con éxito.', 'success');
             } catch (e) {
@@ -1877,13 +1940,44 @@ document.addEventListener('DOMContentLoaded', () => {
             renderSavedForms();
             migrarFundosVisitados()
                 .then(renderFundosVisitados)
-                .then(descargarFundosCompartidos)
-                .then(cambios => { if (cambios) renderFundosVisitados(); })
+                .then(iniciarUsuarioDelEquipo)
                 .catch(e => console.warn('Error cargando fundos visitados:', e));
             verificarAccesoPlataforma();
             iniciarAccesoConfiguracionServidor();
+            actualizarBotonUltimoEquipo();
             actualizarAvisoServidor();
             iniciarSincronizacionAutomatica();
+            verificarActualizacionApp();
+            window.addEventListener('online', verificarActualizacionApp);
+        }
+
+        // Avisa si el servidor tiene una versión de la app más nueva que la instalada en este equipo
+        let urlActualizacion = '';
+        async function verificarActualizacionApp() {
+            const aviso = document.getElementById('aviso-actualizacion');
+            if (!aviso || !navigator.onLine) return;
+            const esApp = !!(window.Android || (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform())
+                || window.location.search.includes('mode=app'));
+            if (!esApp) return;
+            const nueva = await buscarActualizacion();
+            if (!nueva) return;
+            urlActualizacion = nueva.url;
+            aviso.innerHTML = `
+                <div style="margin-bottom:8px;">⚠️ <strong>Tiene una versión antigua de la app</strong> (${escapeHTML(VERSION_APP)}). Ya está disponible la versión ${escapeHTML(nueva.version)}.</div>
+                <button type="button" onclick="actualizarApp()" style="padding:8px 14px; font-size:13px; font-weight:700; background:var(--primary); color:#fff; border:none; border-radius:var(--radius-sm); cursor:pointer;">⬇️ Actualizar app</button>
+            `;
+            aviso.style.display = 'block';
+        }
+
+        async function actualizarApp() {
+            if (!urlActualizacion) return;
+            const ok = await mostrarConfirmacionCustom({
+                title: '⬇️ Actualizar la app',
+                message: 'Se descargará la nueva versión. Al terminar, toque la descarga (o ábrala desde la barra de notificaciones) y presione "Instalar". Si Android lo pide, permita instalar desde esta fuente. Sus formularios guardados no se borran.',
+                confirmText: 'Descargar',
+                type: 'info'
+            });
+            if (ok) await abrirDescargaApp(urlActualizacion);
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -2005,6 +2099,52 @@ Escriba "produccion" para volver a producción.`,
             });
         }
 
+        // Solo en la app del terreno: pide el nombre la primera vez y descarga los fundos donde esa persona es jefe de faena
+        async function iniciarUsuarioDelEquipo() {
+            const esApp = !!(window.Android || (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform())
+                || window.location.search.includes('mode=app'));
+            if (!esApp) return;
+            if (!getUsuario() && !usuarioOmitido()) await elegirUsuario();
+            renderUsuarioActual();
+            await actualizarFundosDelUsuario(true);
+        }
+
+        async function actualizarFundosDelUsuario(silencioso) {
+            const { cambios, error } = await cargarFundosDelUsuario();
+            if (error) {
+                if (!silencioso) showToast(error, 'warning');
+                return;
+            }
+            if (cambios > 0) {
+                renderFundosVisitados();
+                showToast(`📍 ${cambios} fundo(s) cargado(s) para ${getUsuario()}.`, 'success');
+            } else if (!silencioso) {
+                showToast('Ya tiene todos sus fundos al día.', 'info');
+            }
+        }
+
+        function renderUsuarioActual() {
+            const usuario = getUsuario();
+            const botonCabecera = document.getElementById('btn-usuario-header');
+            if (botonCabecera) {
+                botonCabecera.style.display = 'inline-block';
+                botonCabecera.textContent = usuario ? `👷 ${usuario} · Cambiar` : '👷 Elegir usuario del equipo';
+            }
+            const contenedor = document.getElementById('usuario-actual');
+            if (!contenedor) return;
+            contenedor.style.display = 'flex';
+            contenedor.innerHTML = `
+                <span style="color:var(--text-muted);">👷 ${usuario ? 'Equipo de <strong>' + escapeHTML(usuario) + '</strong>' : 'Sin usuario elegido'}</span>
+                <button type="button" onclick="cambiarUsuarioEquipo()" style="padding:6px 10px; font-size:12px; font-weight:600; background:none; color:var(--primary); border:1px solid var(--primary); border-radius:var(--radius-sm); cursor:pointer;">${usuario ? 'Cambiar' : 'Elegir'}</button>
+            `;
+        }
+
+        async function cambiarUsuarioEquipo() {
+            const nombre = await elegirUsuario();
+            renderUsuarioActual();
+            if (nombre) await actualizarFundosDelUsuario(false);
+        }
+
         function formatearFechaVisita(ts) {
             return ts ? new Date(ts).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
         }
@@ -2044,24 +2184,50 @@ Escriba "produccion" para volver a producción.`,
             }).join('');
         }
 
-        function aplicarDatosFundo(f) {
-            const setVal = (id, v) => {
+        // Carga el IRF completo de la última visita al fundo (solo completa los campos que están vacíos)
+        // y pregunta si también se quieren cargar los peligros.
+        async function aplicarDatosFundo(f) {
+            // Fundos guardados antes de la versión 4 solo tienen área, coordenadas y peligros
+            const irf = f.irf || { inputs: { area_relacionamiento: f.area, latitud: f.latitud, longitud: f.longitud }, participantes: [] };
+            // El código de país siempre trae +56: solo cuenta como dato propio si ya había un número
+            const habiaNumero = !!document.getElementById('numero_jefe_faena').value;
+            Object.entries({ ...irf.inputs, fundo_instalacion: f.fundo }).forEach(([id, valor]) => {
                 const el = document.getElementById(id);
-                if (el && v) el.value = v;
-            };
-            setVal('fundo_instalacion', f.fundo);
-            setVal('area_relacionamiento', f.area);
-            setVal('latitud', f.latitud);
-            setVal('longitud', f.longitud);
-
-            const fecha = document.getElementById('fecha_inicio')?.value || new Date().toISOString().split('T')[0];
-            peligrosList = peligrosReutilizables(f.peligros).map(p => ({ ...p, fecha }));
-            actualizarTablaPeligros();
-            if (typeof updateFirssoInicialUI === 'function') updateFirssoInicialUI();
-            if (typeof checkStepCompletion === 'function') checkStepCompletion();
+                if (!el || !valor || el.type === 'file') return;
+                const vacio = !el.value || (id === 'codigo_pais_jefe' && !habiaNumero);
+                if (vacio) el.value = valor;
+            });
+            // La fecha de inicio es la del primer IRF del fundo, no la de hoy
+            if (f.fechaInicio) document.getElementById('fecha_inicio').value = f.fechaInicio;
+            if (participantesList.length === 0 && irf.participantes && irf.participantes.length > 0) {
+                participantesList = irf.participantes.map(p => ({ ...p }));
+                actualizarTablaParticipantes();
+            }
+            refrescarSelectsPersonalizados();
+            checkStepCompletion();
             saveDraft();
             ocultarAvisoFundoVisitado();
-            showToast(`📍 Datos de "${f.fundo}" cargados. Revise los peligros antes de guardar.`, 'success');
+
+            const peligros = peligrosReutilizables(f.peligros);
+            let conPeligros = false;
+            if (peligros.length > 0 && peligrosList.length === 0) {
+                conPeligros = await mostrarConfirmacionCustom({
+                    title: '⚠️ ¿Cargar los peligros?',
+                    message: `La última visita a "${f.fundo}" tiene ${peligros.length} peligro(s) registrado(s). ¿Desea cargarlos en este IRF?`,
+                    confirmText: 'Sí, cargar peligros',
+                    cancelText: 'No, sin peligros',
+                    type: 'info'
+                });
+            }
+            if (conPeligros) {
+                const fecha = document.getElementById('fecha_inicio')?.value || new Date().toISOString().split('T')[0];
+                peligrosList = peligros.map(p => ({ ...p, fecha }));
+                actualizarTablaPeligros();
+                if (typeof updateFirssoInicialUI === 'function') updateFirssoInicialUI();
+                checkStepCompletion();
+                saveDraft();
+            }
+            showToast(`📍 IRF de "${f.fundo}" cargado${conPeligros ? ' con sus peligros' : ' sin peligros'}. Revíselo antes de guardar.`, 'success');
         }
 
         async function nuevoIrfEnFundo(keyAttr) {
@@ -2069,15 +2235,15 @@ Escriba "produccion" para volver a producción.`,
             if (!f) return;
             const ok = await mostrarConfirmacionCustom({
                 title: '📍 Nuevo IRF en ' + f.fundo,
-                message: 'Se limpiará el formulario en pantalla y se precargarán el área, las coordenadas y los peligros registrados en la última visita a este fundo.',
+                message: 'Se limpiará el formulario en pantalla y se cargará el IRF de la última visita a este fundo con todos sus datos. Luego se le preguntará si desea cargar también los peligros.',
                 confirmText: 'Sí, Crear IRF',
                 type: 'warning'
             });
             if (!ok) return;
             limpiarFormulario();
-            aplicarDatosFundo(f);
             const dash = document.getElementById('offline-dashboard');
             if (dash && dash.classList.contains('active')) toggleAccordion('offline-dashboard');
+            await aplicarDatosFundo(f);
         }
 
         async function olvidarFundoVisitado(keyAttr) {
@@ -2121,8 +2287,8 @@ Escriba "produccion" para volver a producción.`,
             }
             aviso.innerHTML = `
                 <div style="margin-bottom:8px;">📍 <strong>Fundo visitado anteriormente</strong> (última visita ${formatearFechaVisita(f.updatedAt)}).
-                Hay ${(f.peligros || []).length} peligro(s)${(f.latitud && f.longitud) ? ' y coordenadas de rescate' : ''} guardados.</div>
-                <button type="button" class="aviso-fundo-aplicar" style="padding:7px 12px; font-size:12px; font-weight:600; background:var(--primary); color:#fff; border:none; border-radius:var(--radius-sm); cursor:pointer;">Cargar datos del fundo</button>
+                Se puede cargar el IRF completo de esa visita (completa solo los campos vacíos) y se le preguntará si desea cargar sus ${(f.peligros || []).length} peligro(s).</div>
+                <button type="button" class="aviso-fundo-aplicar" style="padding:7px 12px; font-size:12px; font-weight:600; background:var(--primary); color:#fff; border:none; border-radius:var(--radius-sm); cursor:pointer;">Cargar IRF del fundo</button>
                 <button type="button" class="aviso-fundo-ignorar" style="padding:7px 12px; font-size:12px; background:none; border:none; color:var(--text-muted); cursor:pointer;">Ignorar</button>
             `;
             aviso.querySelector('.aviso-fundo-aplicar').onclick = () => aplicarDatosFundo(f);
@@ -2773,8 +2939,8 @@ Escriba "produccion" para volver a producción.`,
                 type: 'warning'
             });
             if (ok) {
-                const precargado = limpiarFormulario();
-                showToast(precargado ? 'Nuevo formulario listo. Se precargó el equipo del último IRF (revíselo).' : 'Nuevo formulario listo', 'success');
+                limpiarFormulario();
+                showToast('Nuevo formulario listo', 'success');
             }
         }
 
@@ -2789,6 +2955,21 @@ Escriba "produccion" para volver a producción.`,
                 if (v) equipo[id] = v;
             });
             if (equipo.jefe_faena || equipo.supervisor) localStorage.setItem(ULTIMO_EQUIPO_KEY, JSON.stringify(equipo));
+            actualizarBotonUltimoEquipo();
+        }
+
+        function actualizarBotonUltimoEquipo() {
+            const boton = document.getElementById('btn-usar-ultimo-equipo');
+            if (boton) boton.style.display = localStorage.getItem(ULTIMO_EQUIPO_KEY) ? 'inline-flex' : 'none';
+        }
+
+        // Botón "Usar equipo del último IRF" (sección 2): rellena supervisor, jefe de faena, clave, asesor y teléfono
+        function usarUltimoEquipo() {
+            if (precargarEquipo()) {
+                refrescarSelectsPersonalizados();
+                saveDraft();
+                showToast('Se cargó el equipo del último IRF. Revíselo antes de guardar.', 'success');
+            }
         }
 
         // Rellena los campos del equipo con los del último IRF guardado. Devuelve true si precargó algo.
@@ -2812,6 +2993,7 @@ Escriba "produccion" para volver a producción.`,
         function limpiarFormulario() {
             {
                 document.getElementById('irf-form').reset();
+                restablecerCamposOcultos();
                 if (typeof pad0 !== 'undefined' && pad0) pad0.clear();
                 if (typeof pad1 !== 'undefined' && pad1) pad1.clear();
                 if (typeof pad2 !== 'undefined' && pad2) pad2.clear();
@@ -2826,11 +3008,11 @@ Escriba "produccion" para volver a producción.`,
                 if (contContainer) {
                     contContainer.innerHTML = '<div style="font-size:13px; color:var(--text-muted); font-style:italic;">Seleccione un peligro para ver las medidas sugeridas.</div>';
                 }
-                // Re-init custom selects in case they need refresh
-                if (typeof initCustomSelects === 'function') setTimeout(initCustomSelects, 100);
+                refrescarSelectsPersonalizados();
+                checkStepCompletion();
                 currentActiveFormId = 'irf_' + Date.now();
                 ocultarAvisoFundoVisitado();
-                return precargarEquipo();
+                saveDraft();
             }
         }
 
@@ -2848,6 +3030,7 @@ Escriba "produccion" para volver a producción.`,
                 return;
             }
             document.getElementById('irf-form').reset();
+            restablecerCamposOcultos();
             participantesList = [];
             peligrosList = [];
             deserializeForm(formObj.data);
@@ -2897,6 +3080,8 @@ Escriba "produccion" para volver a producción.`,
                     if (typeof actualizarTablaPeligros === 'function') actualizarTablaPeligros();
                     if (typeof updateFirssoInicialUI === 'function') updateFirssoInicialUI();
                 }
+                refrescarSelectsPersonalizados();
+                checkStepCompletion();
             } catch (e) {
                 console.error("Error deserializing form", e);
             }
@@ -3052,11 +3237,14 @@ Escriba "produccion" para volver a producción.`,
 
 // --- Expose to global scope for inline HTML handlers ---
 window.configurarServidorUrl = configurarServidorUrl;
+window.usarUltimoEquipo = usarUltimoEquipo;
 window.exportarRespaldo = exportarRespaldo;
 window.abrirRestaurarRespaldo = abrirRestaurarRespaldo;
 window.restaurarRespaldo = restaurarRespaldo;
 window.nuevoIrfEnFundo = nuevoIrfEnFundo;
 window.olvidarFundoVisitado = olvidarFundoVisitado;
+window.cambiarUsuarioEquipo = cambiarUsuarioEquipo;
+window.actualizarApp = actualizarApp;
 window.actualizarTablaPeligros = actualizarTablaPeligros;
 window.toggleSosModal = toggleSosModal;
 window.toggleAccordion = toggleAccordion;

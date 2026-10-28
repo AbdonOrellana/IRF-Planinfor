@@ -72,6 +72,7 @@ Para construir la aplicación Android, sigue estos pasos:
 
 - La versión sale de `"version"` en `package.json` (por ejemplo `1.1.0` → versionCode `10100`). **Súbela antes de cada APK que se distribuya**; Android solo instala una actualización si la versión es mayor.
 - El APK se firma con `android/irf-release.jks` usando las claves de `android/keystore.properties`. Ninguno de los dos se sube a git: **guarda una copia de ambos en un lugar seguro**. Si se pierden, no se podrá actualizar la app en los equipos sin desinstalarla (y desinstalar borra los formularios no enviados).
+- **Aviso de actualización en la app:** el servidor ofrece el APK más reciente que encuentre en la carpeta `apk\` del servidor (`C:\IRF\apk\`, fuera de git), con el nombre `IRF-Planinfor-<versión>.apk` (por ejemplo `IRF-Planinfor-1.1.4.apk`). Basta copiar ahí el APK release recién generado, renombrado con su versión: las apps con una versión menor muestran el aviso *"Tiene una versión antigua"* con el botón **Actualizar app**, que descarga el APK para instalarlo. Esto solo funciona en equipos que ya tengan una versión con este aviso (desde la 1.1.4); los equipos con versiones anteriores hay que actualizarlos una vez a mano.
 - Para pruebas sigue sirviendo `.\gradlew.bat assembleDebug`, pero un APK de prueba no se puede instalar encima de uno de producción ni al revés (tienen firmas distintas).
 
 ## Servidor (producción)
@@ -126,7 +127,7 @@ npm run usuarios -- eliminar <usuario>
 | `api.js` | Comunicación con el servidor (URL, reintentos, token de sesión) |
 | `formStore.js` | Almacenamiento de formularios en el equipo (IndexedDB) |
 | `bandeja.js` | Índice de formularios guardados y su estado de envío |
-| `fundosVisitados.js` | Datos de fundos visitados (locales y compartidos por el servidor) |
+| `fundosVisitados.js` | Fundos visitados por quien usa el equipo (solo locales) |
 | `dialogs.js`, `utils.js` | Diálogos, avisos y utilidades de interfaz |
 
 ## Licencia

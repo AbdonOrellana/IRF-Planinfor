@@ -388,6 +388,63 @@ export async function getAllFormRecords() {
     }
 }
 
+const normalizarTexto = (t) => String(t || '').trim().replace(/\s+/g, ' ').toLowerCase();
+
+/**
+ * Fundos donde la persona figura como jefe de faena: el IRF más reciente de cada fundo, sin fotos ni firmas.
+ * Con esto la app precarga en un equipo solo los fundos de quien lo usa.
+ */
+export async function getFundosDeJefe(jefe) {
+    const buscado = normalizarTexto(jefe);
+    if (!buscado) return [];
+
+    let filas;
+    if (isPgConnected && pool) {
+        const res = await pool.query(`
+            SELECT fundo_instalacion, fecha_inicio, synced_at, data_payload
+            FROM formularios_irf
+            WHERE is_deleted IS NOT TRUE
+              AND LOWER(REGEXP_REPLACE(TRIM(data_payload->'inputs'->>'jefe_faena'), '\\s+', ' ', 'g')) = $1
+            ORDER BY synced_at DESC
+        `, [buscado]);
+        filas = res.rows;
+    } else {
+        filas = getJsonDb()
+            .filter(f => !f.is_deleted && normalizarTexto(f.data_payload?.inputs?.jefe_faena) === buscado)
+            .sort((a, b) => new Date(b.synced_at) - new Date(a.synced_at));
+    }
+
+    const porFundo = new Map();
+    for (const fila of filas) {
+        const fundo = (fila.data_payload?.inputs?.fundo_instalacion || '').trim();
+        const clave = normalizarTexto(fundo);
+        if (!clave) continue;
+
+        // Fecha de inicio del primer IRF del fundo (las fechas AAAA-MM-DD se comparan como texto)
+        const existente = porFundo.get(clave);
+        if (existente) {
+            if (/^\d{4}-\d{2}-\d{2}$/.test(fila.fecha_inicio || '') && (!existente.primeraFecha || fila.fecha_inicio < existente.primeraFecha)) {
+                existente.primeraFecha = fila.fecha_inicio;
+            }
+            continue; // vienen del más nuevo al más antiguo
+        }
+        const { inputs = {}, participantes = [], peligros = [] } = fila.data_payload;
+        const inputsSinFirmas = Object.fromEntries(Object.entries(inputs).filter(([id]) => !id.startsWith('firma_')));
+        const fechaVisita = Date.parse(fila.fecha_inicio);
+        porFundo.set(clave, {
+            fundo,
+            primeraFecha: /^\d{4}-\d{2}-\d{2}$/.test(fila.fecha_inicio || '') ? fila.fecha_inicio : '',
+            updatedAt: Number.isNaN(fechaVisita) ? new Date(fila.synced_at).getTime() : fechaVisita,
+            data: {
+                inputs: inputsSinFirmas,
+                participantes,
+                peligros: peligros.map(({ fotoBase64, firma_sup, ...resto }) => resto)
+            }
+        });
+    }
+    return [...porFundo.values()];
+}
+
 /**
  * Obtiene un formulario por ID
  */
@@ -420,53 +477,6 @@ export async function getFormRecordById(id) {
     registro.data = rehidratar(registro.data, fotos);
     registro.version_history = rehidratar(registro.version_history, fotos);
     return registro;
-}
-
-/**
- * Último registro conocido de cada fundo (área, coordenadas y peligros) para compartir entre equipos.
- * No incluye fotos, firmas ni nombres de personas.
- */
-export async function getFundosVisitados() {
-    let rows;
-    if (isPgConnected && pool) {
-        const res = await pool.query(`
-            SELECT DISTINCT ON (LOWER(TRIM(fundo_instalacion)))
-                   fundo_instalacion, synced_at, data_payload->'inputs' AS inputs, data_payload->'peligros' AS peligros
-            FROM formularios_irf
-            WHERE is_deleted IS NOT TRUE AND fundo_instalacion IS NOT NULL AND fundo_instalacion <> 'Sin fundo'
-            ORDER BY LOWER(TRIM(fundo_instalacion)), synced_at DESC
-        `);
-        rows = res.rows;
-    } else {
-        const ultimos = new Map();
-        for (const r of getJsonDb().filter(f => !f.is_deleted && f.fundo_instalacion && f.fundo_instalacion !== 'Sin fundo')) {
-            const key = r.fundo_instalacion.trim().toLowerCase();
-            if (!ultimos.has(key) || new Date(r.synced_at) > new Date(ultimos.get(key).synced_at)) ultimos.set(key, r);
-        }
-        rows = [...ultimos.values()].map(r => ({
-            fundo_instalacion: r.fundo_instalacion, synced_at: r.synced_at,
-            inputs: r.data_payload?.inputs, peligros: r.data_payload?.peligros
-        }));
-    }
-
-    return rows.map(r => {
-        const inputs = r.inputs || {};
-        return {
-            fundo: r.fundo_instalacion.trim(),
-            area: inputs.area_relacionamiento || '',
-            latitud: inputs.latitud || '',
-            longitud: inputs.longitud || '',
-            peligros: (Array.isArray(r.peligros) ? r.peligros : []).filter(p => p && p.descripcion).map(p => ({
-                descripcion: p.descripcion,
-                localizacion: p.localizacion || '',
-                expuestos: p.expuestos || '',
-                ini_if: p.ini_if, ini_is: p.ini_is, ini_firsso: p.ini_firsso,
-                controles: p.controles || '',
-                res_ic: p.res_ic, res_if: p.res_if, res_is: p.res_is, res_firsso: p.res_firsso
-            })),
-            updatedAt: new Date(r.synced_at).getTime()
-        };
-    });
 }
 
 /**

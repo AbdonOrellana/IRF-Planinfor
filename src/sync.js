@@ -11,7 +11,7 @@ import { getForm, putForm } from './formStore.js';
 import { getSavedFormsList, setSavedFormsList, actualizarEntradaIndice, getFormulariosPendientes } from './bandeja.js';
 import { tryFetchWithFallback } from './api.js';
 import { compactarFormularioParaSync, prepararEnvioConFotos } from './fotos.js';
-import { registrarFundoVisitado, descargarFundosCompartidos } from './fundosVisitados.js';
+import { registrarFundoVisitado } from './fundosVisitados.js';
 import { showToast } from './utils.js';
 
 function notificarBandeja() {
@@ -117,7 +117,6 @@ export function iniciarSincronizacionAutomatica() {
     window.addEventListener('online', () => {
         notificarBandeja();
         sincronizarAutomaticamente();
-        descargarFundosCompartidos().then(c => c && window.dispatchEvent(new Event('irf:fundos-actualizados'))).catch(() => {});
     });
     window.addEventListener('offline', notificarBandeja);
     document.addEventListener('visibilitychange', () => {
